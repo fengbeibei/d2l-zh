@@ -19,6 +19,16 @@ from torch import nn
 import os
 ```
 
+```{.python .input}
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
+from paddle import nn
+import os
+```
+
 ## 加载预训练词向量
 
 以下列出维度为50、100和300的预训练GloVe嵌入，可从[GloVe网站](https://nlp.stanford.edu/projects/glove/)下载。预训练的fastText嵌入有多种语言。这里我们使用可以从[fastText网站](https://fasttext.cc/)下载300维度的英文版本（“wiki.en”）。
@@ -48,7 +58,7 @@ d2l.DATA_HUB['wiki.en'] = (d2l.DATA_URL + 'wiki.en.zip',
 #@tab all
 #@save
 class TokenEmbedding:
-    """Token Embedding."""
+    """GloVe嵌入"""
     def __init__(self, embedding_name):
         self.idx_to_token, self.idx_to_vec = self._load_embedding(
             embedding_name)
@@ -131,14 +141,25 @@ def knn(W, x, k):
     return topk, [cos[int(i)] for i in topk]
 ```
 
+```{.python .input}
+#@tab paddle
+def knn(W, x, k):
+    # 增加1e-9以获得数值稳定性
+    cos = paddle.mv(W, x) / (
+        paddle.sqrt(paddle.sum(W * W, axis=1) + 1e-9) *
+        paddle.sqrt((x * x).sum()))
+    _, topk = paddle.topk(cos, k=k)
+    return topk, [cos[int(i)] for i in topk]
+```
+
 然后，我们使用`TokenEmbedding`的实例`embed`中预训练好的词向量来搜索相似的词。
 
 ```{.python .input}
 #@tab all
 def get_similar_tokens(query_token, k, embed):
     topk, cos = knn(embed.idx_to_vec, embed[[query_token]], k + 1)
-    for i, c in zip(topk[1:], cos[1:]):  # Exclude the input word
-        print(f'cosine sim={float(c):.3f}: {embed.idx_to_token[int(i)]}')
+    for i, c in zip(topk[1:], cos[1:]):  # 排除输入词
+        print(f'{embed.idx_to_token[int(i)]}：cosine相似度={float(c):.3f}')
 ```
 
 `glove_6b50d`中预训练词向量的词表包含400000个词和一个特殊的未知词元。排除输入词和未知词元后，我们在词表中找到与“chip”一词语义最相似的三个词。
@@ -221,9 +242,13 @@ get_analogy('do', 'did', 'go', glove_6b50d)
 1. 当词表非常大时，我们怎样才能更快地找到相似的词或完成一个词的类比呢？
 
 :begin_tab:`mxnet`
-[Discussions](https://discuss.d2l.ai/t/387)
+[Discussions](https://discuss.d2l.ai/t/5745)
 :end_tab:
 
 :begin_tab:`pytorch`
-[Discussions](https://discuss.d2l.ai/t/1336)
+[Discussions](https://discuss.d2l.ai/t/5746)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11819)
 :end_tab:

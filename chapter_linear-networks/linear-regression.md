@@ -111,6 +111,7 @@ $${\hat{\mathbf{y}}} = \mathbf{X} \mathbf{w} + b$$
 平方误差可以定义为以下公式：
 
 $$l^{(i)}(\mathbf{w}, b) = \frac{1}{2} \left(\hat{y}^{(i)} - y^{(i)}\right)^2.$$
+:eqlabel:`eq_mse`
 
 常数$\frac{1}{2}$不会带来本质的差别，但这样在形式上稍微简单一些
 （因为当我们对损失函数求导后常数系数为1）。
@@ -196,7 +197,7 @@ $\eta$表示*学习率*（learning rate）。
 因为算法会使得损失向最小值缓慢收敛，但却不能在有限的步数内非常精确地达到最小值。
 
 线性回归恰好是一个在整个域中只有一个最小值的学习问题。
-但是对于像深度神经网络这样复杂的模型来说，损失平面上通常包含多个最小值。
+但是对像深度神经网络这样复杂的模型来说，损失平面上通常包含多个最小值。
 深度学习实践者很少会去花费大力气寻找这样一组参数，使得在*训练集*上的损失达到最小。
 事实上，更难做到的是找到一组参数，这组参数能够在我们从未见过的数据上实现较低的损失，
 这一挑战被称为*泛化*（generalization）。
@@ -246,6 +247,18 @@ import numpy as np
 import time
 ```
 
+```{.python .input}
+#@tab paddle
+%matplotlib inline
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import math
+import numpy as np
+import time
+import paddle
+```
+
 为了说明矢量化为什么如此重要，我们考虑(**对向量相加的两种方法**)。
 我们实例化两个全为1的10000维向量。
 在一种方法中，我们将使用Python的for循环遍历向量；
@@ -254,8 +267,8 @@ import time
 ```{.python .input}
 #@tab all
 n = 10000
-a = d2l.ones(n)
-b = d2l.ones(n)
+a = d2l.ones([n])
+b = d2l.ones([n])
 ```
 
 由于在本书中我们将频繁地进行运行时间的基准测试，所以[**我们定义一个计时器**]：
@@ -263,30 +276,30 @@ b = d2l.ones(n)
 ```{.python .input}
 #@tab all
 class Timer:  #@save
-    """记录多次运行时间。"""
+    """记录多次运行时间"""
     def __init__(self):
         self.times = []
         self.start()
 
     def start(self):
-        """启动计时器。"""
+        """启动计时器"""
         self.tik = time.time()
 
     def stop(self):
-        """停止计时器并将时间记录在列表中。"""
+        """停止计时器并将时间记录在列表中"""
         self.times.append(time.time() - self.tik)
         return self.times[-1]
 
     def avg(self):
-        """返回平均时间。"""
+        """返回平均时间"""
         return sum(self.times) / len(self.times)
 
     def sum(self):
-        """返回时间总和。"""
+        """返回时间总和"""
         return sum(self.times)
 
     def cumsum(self):
-        """返回累计时间。"""
+        """返回累计时间"""
         return np.array(self.times).cumsum().tolist()
 ```
 
@@ -309,6 +322,15 @@ c = tf.Variable(d2l.zeros(n))
 timer = Timer()
 for i in range(n):
     c[i].assign(a[i] + b[i])
+f'{timer.stop():.5f} sec'
+```
+
+```{.python .input}
+#@tab paddle
+c = d2l.zeros([n])
+timer = Timer()
+for i in range(n):
+    c[i] = a[i] + b[i]
 f'{timer.stop():.5f} sec'
 ```
 
@@ -349,7 +371,18 @@ def normal(x, mu, sigma):
 我们现在(**可视化正态分布**)。
 
 ```{.python .input}
-#@tab all
+#@tab mxnet
+# 再次使用numpy进行可视化
+x = np.arange(-7, 7, 0.01)
+# Mean and standard deviation pairs
+params = [(0, 1), (0, 2), (3, 1)]
+d2l.plot(x.asnumpy(), [normal(x, mu, sigma).asnumpy() for mu, sigma in params], xlabel='x',
+         ylabel='p(x)', figsize=(4.5, 2.5),
+         legend=[f'mean {mu}, std {sigma}' for mu, sigma in params])
+```
+
+```{.python .input}
+#@tab pytorch, tensorflow, paddle
 # 再次使用numpy进行可视化
 x = np.arange(-7, 7, 0.01)
 
@@ -429,7 +462,7 @@ $$-\log P(\mathbf y \mid \mathbf X) = \sum_{i=1}^n \frac{1}{2} \log(2 \pi \sigma
 他们为什么将线性模型作为一个起点呢？
 我们来看一张图片 :numref:`fig_Neuron`：
 这是一张由*树突*（dendrites，输入终端）、
-*细胞核*（nucleu，CPU）组成的生物神经元图片。
+*细胞核*（nucleus，CPU）组成的生物神经元图片。
 *轴突*（axon，输出线）和*轴突端子*（axon terminal，输出端子）
 通过*突触*（synapse）与其他神经元连接。
 
@@ -447,9 +480,9 @@ $$-\log P(\mathbf y \mid \mathbf X) = \sum_{i=1}^n \frac{1}{2} \log(2 \pi \sigma
 这种想法归功于我们对真实生物神经系统的研究。
 
 当今大多数深度学习的研究几乎没有直接从神经科学中获得灵感。
-我们援引斯图尔特·罗素和彼得·诺维格谁，在他们的经典人工智能教科书
+我们援引斯图尔特·罗素和彼得·诺维格在他们的经典人工智能教科书
 *Artificial Intelligence:A Modern Approach* :cite:`Russell.Norvig.2016`
-中所说：虽然飞机可能受到鸟类的启发，但几个世纪以来，鸟类学并不是航空创新的主要驱动力。
+中所说的：虽然飞机可能受到鸟类的启发，但几个世纪以来，鸟类学并不是航空创新的主要驱动力。
 同样地，如今在深度学习中的灵感同样或更多地来自数学、统计学和计算机科学。
 
 ## 小结
@@ -471,8 +504,8 @@ $$-\log P(\mathbf y \mid \mathbf X) = \sum_{i=1}^n \frac{1}{2} \log(2 \pi \sigma
     1. 什么时候可能比使用随机梯度下降更好？这种方法何时会失效？
 1. 假定控制附加噪声$\epsilon$的噪声模型是指数分布。也就是说，$p(\epsilon) = \frac{1}{2} \exp(-|\epsilon|)$
     1. 写出模型$-\log P(\mathbf y \mid \mathbf X)$下数据的负对数似然。
-    1. 你能写出解析解吗？
-    1. 提出一种随机梯度下降算法来解决这个问题。哪里可能出错？（提示：当我们不断更新参数时，在驻点附近会发生什么情况）你能解决这个问题吗？
+    1. 请试着写出解析解。
+    1. 提出一种随机梯度下降算法来解决这个问题。哪里可能出错？（提示：当我们不断更新参数时，在驻点附近会发生什么情况）请尝试解决这个问题。
 
 :begin_tab:`mxnet`
 [Discussions](https://discuss.d2l.ai/t/1774)
@@ -484,4 +517,8 @@ $$-\log P(\mathbf y \mid \mathbf X) = \sum_{i=1}^n \frac{1}{2} \log(2 \pi \sigma
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/1776)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11688)
 :end_tab:

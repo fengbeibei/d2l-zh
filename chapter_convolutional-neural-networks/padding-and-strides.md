@@ -6,7 +6,7 @@
 因此，卷积的输出形状取决于输入形状和卷积核的形状。
 
 还有什么因素会影响输出的大小呢？本节我们将介绍*填充*（padding）和*步幅*（stride）。假设以下情景：
-有时，在应用了连续的卷积之后，我们最终得到的输出远小于输入大小。这是由于卷积核的宽度和高度通常大于$1$所导致的。比如，一个$240 \times 240$像素的图像，经过$10$层$5 \times 5$的卷积后，将减少到$200 \times 200$像素。如此一来，原始图像的边界丢失了许多有用信息。而*填充*是解决此问题最有效的方法。
+有时，在应用了连续的卷积之后，我们最终得到的输出远小于输入大小。这是由于卷积核的宽度和高度通常大于$1$所导致的。比如，一个$240 \times 240$像素的图像，经过$10$层$5 \times 5$的卷积后，将减少到$200 \times 200$像素。如此一来，原始图像的边界丢失了许多有用信息。而*填充*是解决此问题最有效的方法；
 有时，我们可能希望大幅降低图像的宽度和高度。例如，如果我们发现原始的输入分辨率十分冗余。*步幅*则可以在这类情况下提供帮助。
 
 ## 填充
@@ -34,8 +34,8 @@ $$(n_h-k_h+p_h+1)\times(n_w-k_w+p_w+1)。$$
 卷积神经网络中卷积核的高度和宽度通常为奇数，例如1、3、5或7。
 选择奇数的好处是，保持空间维度的同时，我们可以在顶部和底部填充相同数量的行，在左侧和右侧填充相同数量的列。
 
-此外，使用奇数核和填充也提供了书写上的便利。对于任何二维张量`X`，当满足：
-1. 内核的大小是奇数；
+此外，使用奇数的核大小和填充大小也提供了书写上的便利。对于任何二维张量`X`，当满足：
+1. 卷积核的大小是奇数；
 2. 所有边的填充行数和列数相同；
 3. 输出与输入具有相同高度和宽度
 则可以得出：输出`Y[i, j]`是通过以输入`X[i, j]`为中心，与卷积核进行互相关计算得到的。
@@ -102,7 +102,28 @@ X = tf.random.uniform(shape=(8, 8))
 comp_conv2d(conv2d, X).shape
 ```
 
-当卷积内核的高度和宽度不同时，我们可以[**填充不同的高度和宽度**]，使输出和输入具有相同的高度和宽度。在如下示例中，我们使用高度为5，宽度为3的卷积核，高度和宽度两边的填充分别为2和1。
+```{.python .input}
+#@tab paddle
+import warnings
+warnings.filterwarnings(action='ignore')
+import paddle
+from paddle import nn
+
+# 为了方便起见，我们定义了一个计算卷积层的函数。
+# 此函数初始化卷积层权重，并对输入和输出提高和缩减相应的维数
+def comp_conv2d(conv2d, X):
+    # 这里的（1，1）表示批量大小和通道数都是1
+    X = paddle.reshape(X, [1, 1] + X.shape)
+    Y = conv2d(X)
+    return Y.reshape(Y.shape[2:])  # 排除不关心的前两维：批量和通道
+
+# 请注意，这里每边都填充了1行或1列，因此总共添加了2行或2列
+conv2d = nn.Conv2D(in_channels=1, out_channels=1, kernel_size=3, padding=1)
+X = paddle.rand((8, 8))
+comp_conv2d(conv2d, X).shape
+```
+
+当卷积核的高度和宽度不同时，我们可以[**填充不同的高度和宽度**]，使输出和输入具有相同的高度和宽度。在如下示例中，我们使用高度为5，宽度为3的卷积核，高度和宽度两边的填充分别为2和1。
 
 ```{.python .input}
 conv2d = nn.Conv2D(1, kernel_size=(5, 3), padding=(2, 1))
@@ -121,9 +142,15 @@ conv2d = tf.keras.layers.Conv2D(1, kernel_size=(5, 3), padding='same')
 comp_conv2d(conv2d, X).shape
 ```
 
+```{.python .input}
+#@tab paddle
+conv2d = nn.Conv2D(in_channels=1, out_channels=1, kernel_size=(5, 3), padding=(2, 1))
+comp_conv2d(conv2d, X).shape
+```
+
 ## 步幅
 
-在计算互相关时，卷积窗口从输入张量的左上角开始，向下和向右滑动。
+在计算互相关时，卷积窗口从输入张量的左上角开始，向下、向右滑动。
 在前面的例子中，我们默认每次滑动一个元素。
 但是，有时候为了高效计算或是缩减采样次数，卷积窗口可以跳过中间位置，每次滑动多个元素。
 
@@ -162,6 +189,12 @@ conv2d = tf.keras.layers.Conv2D(1, kernel_size=3, padding='same', strides=2)
 comp_conv2d(conv2d, X).shape
 ```
 
+```{.python .input}
+#@tab paddle
+conv2d = nn.Conv2D(1, 1, kernel_size=3, padding=1, stride=2)
+comp_conv2d(conv2d, X).shape
+```
+
 接下来，看(**一个稍微复杂的例子**)。
 
 ```{.python .input}
@@ -182,7 +215,12 @@ conv2d = tf.keras.layers.Conv2D(1, kernel_size=(3,5), padding='valid',
 comp_conv2d(conv2d, X).shape
 ```
 
-为了简洁起见，当输入高度和宽度两侧的填充数量分别为$p_h$和$p_w$时，我们称之为填充$(p_h, p_w)$。当$p_h = p_w = p$时，填充是$p$。同理，当高度和宽度上的步幅分别为$s_h$和$s_w$时，我们称之为步幅$(s_h, s_w)$。当时的步幅为$s_h = s_w = s$时，步幅为$s$。默认情况下，填充为0，步幅为1。在实践中，我们很少使用不一致的步幅或填充，也就是说，我们通常有$p_h = p_w$和$s_h = s_w$。
+```{.python .input}
+#@tab paddle
+conv2d = nn.Conv2D(1, 1, kernel_size=(3, 5), padding=(0, 1), stride=(3, 4))
+comp_conv2d(conv2d, X).shape
+```
+为了简洁起见，当输入高度和宽度两侧的填充数量分别为$p_h$和$p_w$时，我们称之为填充$(p_h, p_w)$。当$p_h = p_w = p$时，填充是$p$。同理，当高度和宽度上的步幅分别为$s_h$和$s_w$时，我们称之为步幅$(s_h, s_w)$。特别地，当$s_h = s_w = s$时，我们称步幅为$s$。默认情况下，填充为0，步幅为1。在实践中，我们很少使用不一致的步幅或填充，也就是说，我们通常有$p_h = p_w$和$s_h = s_w$。
 
 ## 小结
 
@@ -207,4 +245,8 @@ comp_conv2d(conv2d, X).shape
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/1850)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11784)
 :end_tab:

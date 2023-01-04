@@ -5,7 +5,6 @@
 (**是图像分类中广泛使用的数据集之一，但作为基准数据集过于简单。
 我们将使用类似但更复杂的Fashion-MNIST数据集**) :cite:`Xiao.Rasul.Vollgraf.2017`。
 
-
 ```{.python .input}
 %matplotlib inline
 from d2l import mxnet as d2l
@@ -36,6 +35,19 @@ import tensorflow as tf
 d2l.use_svg_display()
 ```
 
+```{.python .input}
+#@tab paddle
+%matplotlib inline
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import sys
+import paddle
+from paddle.vision import transforms
+
+d2l.use_svg_display()
+```
+
 ## 读取数据集
 
 我们可以[**通过框架中的内置函数将Fashion-MNIST数据集下载并读取到内存中**]。
@@ -48,7 +60,7 @@ mnist_test = gluon.data.vision.FashionMNIST(train=False)
 ```{.python .input}
 #@tab pytorch
 # 通过ToTensor实例将图像数据从PIL类型变换成32位浮点数格式，
-# 并除以255使得所有像素的数值均在0到1之间
+# 并除以255使得所有像素的数值均在0～1之间
 trans = transforms.ToTensor()
 mnist_train = torchvision.datasets.FashionMNIST(
     root="../data", train=True, transform=trans, download=True)
@@ -61,6 +73,14 @@ mnist_test = torchvision.datasets.FashionMNIST(
 mnist_train, mnist_test = tf.keras.datasets.fashion_mnist.load_data()
 ```
 
+```{.python .input}
+#@tab paddle
+trans = transforms.ToTensor()
+mnist_train = paddle.vision.datasets.FashionMNIST(mode="train",
+                                                  transform=trans)
+mnist_test = paddle.vision.datasets.FashionMNIST(mode="test", transform=trans)
+```
+
 Fashion-MNIST由10个类别的图像组成，
 每个类别由*训练数据集*（train dataset）中的6000张图像
 和*测试数据集*（test dataset）中的1000张图像组成。
@@ -68,7 +88,7 @@ Fashion-MNIST由10个类别的图像组成，
 测试数据集不会用于训练，只用于评估模型性能。
 
 ```{.python .input}
-#@tab mxnet, pytorch
+#@tab mxnet, pytorch, paddle
 len(mnist_train), len(mnist_test)
 ```
 
@@ -94,7 +114,7 @@ Fashion-MNIST中包含的10个类别，分别为t-shirt（T恤）、trouser（�
 ```{.python .input}
 #@tab all
 def get_fashion_mnist_labels(labels):  #@save
-    """返回Fashion-MNIST数据集的文本标签。"""
+    """返回Fashion-MNIST数据集的文本标签"""
     text_labels = ['t-shirt', 'trouser', 'pullover', 'dress', 'coat',
                    'sandal', 'shirt', 'sneaker', 'bag', 'ankle boot']
     return [text_labels[int(i)] for i in labels]
@@ -105,7 +125,7 @@ def get_fashion_mnist_labels(labels):  #@save
 ```{.python .input}
 #@tab mxnet, tensorflow
 def show_images(imgs, num_rows, num_cols, titles=None, scale=1.5):  #@save
-    """绘制图像列表。"""
+    """绘制图像列表"""
     figsize = (num_cols * scale, num_rows * scale)
     _, axes = d2l.plt.subplots(num_rows, num_cols, figsize=figsize)
     axes = axes.flatten()
@@ -121,12 +141,34 @@ def show_images(imgs, num_rows, num_cols, titles=None, scale=1.5):  #@save
 ```{.python .input}
 #@tab pytorch
 def show_images(imgs, num_rows, num_cols, titles=None, scale=1.5):  #@save
-    """绘制图像列表。"""
+    """绘制图像列表"""
     figsize = (num_cols * scale, num_rows * scale)
     _, axes = d2l.plt.subplots(num_rows, num_cols, figsize=figsize)
     axes = axes.flatten()
     for i, (ax, img) in enumerate(zip(axes, imgs)):
         if torch.is_tensor(img):
+            # 图片张量
+            ax.imshow(img.numpy())
+        else:
+            # PIL图片
+            ax.imshow(img)
+        ax.axes.get_xaxis().set_visible(False)
+        ax.axes.get_yaxis().set_visible(False)
+        if titles:
+            ax.set_title(titles[i])
+    return axes
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+def show_images(imgs, num_rows, num_cols, titles=None, scale=1.5):
+    """绘制图像列表"""
+    figsize = (num_cols * scale, num_rows * scale)
+    _, axes = d2l.plt.subplots(num_rows, num_cols, figsize=figsize)
+    axes = axes.flatten()
+    for i, (ax, img) in enumerate(zip(axes, imgs)):
+        if paddle.is_tensor(img):
             # 图片张量
             ax.imshow(img.numpy())
         else:
@@ -161,6 +203,12 @@ y = tf.constant(mnist_train[1][:18])
 show_images(X, 2, 9, titles=get_fashion_mnist_labels(y));
 ```
 
+```{.python .input}
+#@tab paddle
+X, y = next(iter(paddle.io.DataLoader(mnist_train, batch_size=18)))
+show_images(X.reshape([18, 28, 28]), 2, 9, titles=get_fashion_mnist_labels(y));
+```
+
 ## 读取小批量
 
 为了使我们在读取训练集和测试集时更容易，我们使用内置的数据迭代器，而不是从零开始创建。
@@ -171,11 +219,11 @@ show_images(X, 2, 9, titles=get_fashion_mnist_labels(y));
 batch_size = 256
 
 def get_dataloader_workers():  #@save
-    """在非Windows的平台上，使用4个进程来读取数据。"""
+    """在非Windows的平台上，使用4个进程来读取数据"""
     return 0 if sys.platform.startswith('win') else 4
 
 # 通过ToTensor实例将图像数据从uint8格式变换成32位浮点数格式，并除以255使得所有像素的数值
-# 均在0到1之间
+# 均在0～1之间
 transformer = gluon.data.vision.transforms.ToTensor()
 train_iter = gluon.data.DataLoader(mnist_train.transform_first(transformer),
                                    batch_size, shuffle=True,
@@ -187,7 +235,7 @@ train_iter = gluon.data.DataLoader(mnist_train.transform_first(transformer),
 batch_size = 256
 
 def get_dataloader_workers():  #@save
-    """使用4个进程来读取数据。"""
+    """使用4个进程来读取数据"""
     return 4
 
 train_iter = data.DataLoader(mnist_train, batch_size, shuffle=True,
@@ -199,6 +247,21 @@ train_iter = data.DataLoader(mnist_train, batch_size, shuffle=True,
 batch_size = 256
 train_iter = tf.data.Dataset.from_tensor_slices(
     mnist_train).batch(batch_size).shuffle(len(mnist_train[0]))
+```
+
+```{.python .input}
+#@tab paddle
+batch_size = 256
+
+def get_dataloader_workers():  #@save
+    """使用4个进程来读取数据"""
+    return 4
+
+train_iter = paddle.io.DataLoader(dataset=mnist_train,
+                                  batch_size=batch_size,
+                                  shuffle=True,
+                                  return_list=True,
+                                  num_workers=get_dataloader_workers())
 ```
 
 我们看一下读取训练数据所需的时间。
@@ -219,7 +282,7 @@ f'{timer.stop():.2f} sec'
 
 ```{.python .input}
 def load_data_fashion_mnist(batch_size, resize=None):  #@save
-    """下载Fashion-MNIST数据集，然后将其加载到内存中。"""
+    """下载Fashion-MNIST数据集，然后将其加载到内存中"""
     dataset = gluon.data.vision
     trans = [dataset.transforms.ToTensor()]
     if resize:
@@ -236,7 +299,7 @@ def load_data_fashion_mnist(batch_size, resize=None):  #@save
 ```{.python .input}
 #@tab pytorch
 def load_data_fashion_mnist(batch_size, resize=None):  #@save
-    """下载Fashion-MNIST数据集，然后将其加载到内存中。"""
+    """下载Fashion-MNIST数据集，然后将其加载到内存中"""
     trans = [transforms.ToTensor()]
     if resize:
         trans.insert(0, transforms.Resize(resize))
@@ -254,7 +317,7 @@ def load_data_fashion_mnist(batch_size, resize=None):  #@save
 ```{.python .input}
 #@tab tensorflow
 def load_data_fashion_mnist(batch_size, resize=None):   #@save
-    """下载Fashion-MNIST数据集，然后将其加载到内存中。"""
+    """下载Fashion-MNIST数据集，然后将其加载到内存中"""
     mnist_train, mnist_test = tf.keras.datasets.fashion_mnist.load_data()
     # 将所有数字除以255，使所有像素值介于0和1之间，在最后添加一个批处理维度，
     # 并将标签转换为int32。
@@ -267,6 +330,31 @@ def load_data_fashion_mnist(batch_size, resize=None):   #@save
             batch_size).shuffle(len(mnist_train[0])).map(resize_fn),
         tf.data.Dataset.from_tensor_slices(process(*mnist_test)).batch(
             batch_size).map(resize_fn))
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+def load_data_fashion_mnist(batch_size, resize=None):  
+    """下载Fashion-MNIST数据集，然后将其加载到内存中"""
+    trans = [transforms.ToTensor()]
+    if resize:
+        trans.insert(0, transforms.Resize(resize))
+    trans = transforms.Compose(trans)
+    mnist_train = paddle.vision.datasets.FashionMNIST(mode="train",
+                                                      transform=trans)
+    mnist_test = paddle.vision.datasets.FashionMNIST(mode="test",
+                                                     transform=trans)
+    return (paddle.io.DataLoader(dataset=mnist_train,
+                                 batch_size=batch_size,
+                                 shuffle=True,
+                                 return_list=True,
+                                 num_workers=get_dataloader_workers()),
+            paddle.io.DataLoader(dataset=mnist_test,
+                                 batch_size=batch_size,
+                                 return_list=True,
+                                 shuffle=True,
+                                 num_workers=get_dataloader_workers()))
 ```
 
 下面，我们通过指定`resize`参数来测试`load_data_fashion_mnist`函数的图像大小调整功能。
@@ -290,7 +378,7 @@ for X, y in train_iter:
 ## 练习
 
 1. 减少`batch_size`（如减少到1）是否会影响读取性能？
-1. 数据迭代器的性能非常重要。你认为当前的实现足够快吗？探索各种选择来改进它。
+1. 数据迭代器的性能非常重要。当前的实现足够快吗？探索各种选择来改进它。
 1. 查阅框架的在线API文档。还有哪些其他数据集可用？
 
 :begin_tab:`mxnet`
@@ -303,4 +391,8 @@ for X, y in train_iter:
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/1786)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11692)
 :end_tab:

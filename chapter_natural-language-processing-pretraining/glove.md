@@ -61,7 +61,7 @@ $$\sum_{i\in\mathcal{V}} \sum_{j\in\mathcal{V}} h(x_{ij}) \left(\mathbf{u}_j^\to
 
 从 :numref:`tab_glove`中，我们可以观察到以下几点：
 
-* 对于与“ice”相关但与“gas”无关的单词$w_k$，例如$w_k=\text{solid}$，我们预计会有更大的共现概率比值，例如8.9。
+* 对于与“ice”相关但与“steam”无关的单词$w_k$，例如$w_k=\text{solid}$，我们预计会有更大的共现概率比值，例如8.9。
 * 对于与“steam”相关但与“ice”无关的单词$w_k$，例如$w_k=\text{gas}$，我们预计较小的共现概率比值，例如0.085。
 * 对于同时与“ice”和“steam”相关的单词$w_k$，例如$w_k=\text{water}$，我们预计其共现概率的比值接近1，例如1.36.
 * 对于与“ice”和“steam”都不相关的单词$w_k$，例如$w_k=\text{fashion}$，我们预计共现概率的比值接近1，例如0.96.
@@ -84,14 +84,14 @@ $$\mathbf{u}_j^\top \mathbf{v}_i + b_i + c_j \approx \log\, x_{ij}.$$
 
 ## 小结
 
-* 可以使用诸如词-词共现计数的全局语料库统计来解释跳元模型。
+* 诸如词-词共现计数的全局语料库统计可以来解释跳元模型。
 * 交叉熵损失可能不是衡量两种概率分布差异的好选择，特别是对于大型语料库。GloVe使用平方损失来拟合预先计算的全局语料库统计数据。
 * 对于GloVe中的任意词，中心词向量和上下文词向量在数学上是等价的。
 * GloVe可以从词-词共现概率的比率来解释。
 
 ## 练习
 
-1. 如果词$w_i$和$w_j$在同一上下文窗口中同时出现，我们如何使用它们在文本序列中的距离来重新设计计算条件概率$p_{ij}$的方法？提示:参见GloVe论文的第4.2节 :cite:`Pennington.Socher.Manning.2014`。
+1. 如果词$w_i$和$w_j$在同一上下文窗口中同时出现，我们如何使用它们在文本序列中的距离来重新设计计算条件概率$p_{ij}$的方法？提示：参见GloVe论文 :cite:`Pennington.Socher.Manning.2014`的第4.2节。
 1. 对于任何一个词，它的中心词偏置和上下文偏置在数学上是等价的吗？为什么？
 
-[Discussions](https://discuss.d2l.ai/t/385)
+[Discussions](https://discuss.d2l.ai/t/5736)

@@ -4,7 +4,7 @@
 对于序列数据处理问题，我们在 :numref:`sec_sequence`中
 评估了所需的统计工具和预测时面临的挑战。
 这样的数据存在许多种形式，文本是最常见例子之一。
-例如，一篇文章可以被简单地看作是一串单词序列，甚至是一串字符序列。
+例如，一篇文章可以被简单地看作一串单词序列，甚至是一串字符序列。
 本节中，我们将解析文本的常见预处理步骤。
 这些步骤通常包括：
 
@@ -30,6 +30,13 @@ import re
 #@tab tensorflow
 import collections
 from d2l import tensorflow as d2l
+import re
+```
+
+```{.python .input}
+#@tab paddle
+import collections
+from d2l import paddle as d2l
 import re
 ```
 
@@ -114,7 +121,6 @@ class Vocab:  #@save
         self.idx_to_token = ['<unk>'] + reserved_tokens
         self.token_to_idx = {token: idx
                              for idx, token in enumerate(self.idx_to_token)}
-        self.idx_to_token, self.token_to_idx = [], dict()
         for token, freq in self._token_freqs:
             if freq < min_freq:
                 break
@@ -145,7 +151,7 @@ class Vocab:  #@save
 
 def count_corpus(tokens):  #@save
     """统计词元的频率"""
-    # 这里的 `tokens` 是 1D 列表或 2D 列表
+    # 这里的tokens是1D列表或2D列表
     if len(tokens) == 0 or isinstance(tokens[0], list):
         # 将词元列表展平成一个列表
         tokens = [token for line in tokens for token in line]
@@ -216,4 +222,8 @@ len(corpus), len(vocab)
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/2095)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11796)
 :end_tab:

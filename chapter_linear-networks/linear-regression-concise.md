@@ -10,7 +10,7 @@
 实际上，由于数据迭代器、损失函数、优化器和神经网络层很常用，
 现代深度学习库也为我们实现了这些组件。
 
-在本节中，我们将介绍如何(**通过使用深度学习框架来简洁地实现**)
+本节将介绍如何(**通过使用深度学习框架来简洁地实现**)
  :numref:`sec_linear_scratch`中的(**线性回归模型**)。
 
 ## 生成数据集
@@ -39,6 +39,15 @@ import tensorflow as tf
 ```
 
 ```{.python .input}
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import paddle
+```
+
+```{.python .input}
 #@tab all
 true_w = d2l.tensor([2, -3.4])
 true_b = 4.2
@@ -53,7 +62,7 @@ features, labels = d2l.synthetic_data(true_w, true_b, 1000)
 
 ```{.python .input}
 def load_array(data_arrays, batch_size, is_train=True):  #@save
-    """构造一个Gluon数据迭代器。"""
+    """构造一个Gluon数据迭代器"""
     dataset = gluon.data.ArrayDataset(*data_arrays)
     return gluon.data.DataLoader(dataset, batch_size, shuffle=is_train)
 ```
@@ -61,7 +70,7 @@ def load_array(data_arrays, batch_size, is_train=True):  #@save
 ```{.python .input}
 #@tab pytorch
 def load_array(data_arrays, batch_size, is_train=True):  #@save
-    """构造一个PyTorch数据迭代器。"""
+    """构造一个PyTorch数据迭代器"""
     dataset = data.TensorDataset(*data_arrays)
     return data.DataLoader(dataset, batch_size, shuffle=is_train)
 ```
@@ -69,12 +78,23 @@ def load_array(data_arrays, batch_size, is_train=True):  #@save
 ```{.python .input}
 #@tab tensorflow
 def load_array(data_arrays, batch_size, is_train=True):  #@save
-    """构造一个TensorFlow数据迭代器。"""
+    """构造一个TensorFlow数据迭代器"""
     dataset = tf.data.Dataset.from_tensor_slices(data_arrays)
     if is_train:
         dataset = dataset.shuffle(buffer_size=1000)
     dataset = dataset.batch(batch_size)
     return dataset
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+def load_array(data_arrays, batch_size, is_train=True):
+    """构造一个Paddle数据迭代器"""
+    dataset = paddle.io.TensorDataset(data_arrays)
+    return paddle.io.DataLoader(dataset, batch_size=batch_size,
+                                shuffle=is_train,
+                                return_list=True)
 ```
 
 ```{.python .input}
@@ -95,9 +115,9 @@ next(iter(data_iter))
 
 当我们在 :numref:`sec_linear_scratch`中实现线性回归时，
 我们明确定义了模型参数变量，并编写了计算的代码，这样通过基本的线性代数运算得到输出。
-但是，如果模型变得更加复杂，且当你几乎每天都需要实现模型时，你会想简化这个过程。
+但是，如果模型变得更加复杂，且当我们几乎每天都需要实现模型时，自然会想简化这个过程。
 这种情况类似于为自己的博客从零开始编写网页。
-做一两次是有益的，但如果每个新博客你就花一个月的时间重新开始编写网页，那并不高效。
+做一两次是有益的，但如果每个新博客就需要工程师花一个月的时间重新开始编写网页，那并不高效。
 
 对于标准深度学习模型，我们可以[**使用框架的预定义好的层**]。这使我们只需关注使用哪些层来构造模型，而不必关注层的实现细节。
 我们首先定义一个模型变量`net`，它是一个`Sequential`类的实例。
@@ -119,7 +139,7 @@ next(iter(data_iter))
 所以在这里，我们不需要告诉Gluon有多少输入进入这一层。
 当我们第一次尝试通过我们的模型传递数据时，例如，当后面执行`net(X)`时，
 Gluon会自动推断每个层输入的形状。
-我们稍后将详细介绍这种工作机制。
+本节稍后将详细介绍这种工作机制。
 :end_tab:
 
 :begin_tab:`pytorch`
@@ -132,15 +152,22 @@ Gluon会自动推断每个层输入的形状。
 在Keras中，全连接层在`Dense`类中定义。
 由于我们只想得到一个标量输出，所以我们将该数字设置为1。
 
+
 值得注意的是，为了方便使用，Keras不要求我们为每个层指定输入形状。
 所以在这里，我们不需要告诉Keras有多少输入进入这一层。
 当我们第一次尝试通过我们的模型传递数据时，例如，当后面执行`net(X)`时，
 Keras会自动推断每个层输入的形状。
-我们稍后将详细介绍这种工作机制。
+本节稍后将详细介绍这种工作机制。
+:end_tab:
+
+:begin_tab:`paddle`
+在PaddlePaddle中，全连接层在`Linear`类中定义。
+值得注意的是，我们将两个参数传递到`nn.Linear`中。
+第一个指定输入特征形状，即2，第二个指定输出特征形状，输出特征形状为单个标量，因此为1。
 :end_tab:
 
 ```{.python .input}
-# `nn` 是神经网络的缩写
+# nn是神经网络的缩写
 from mxnet.gluon import nn
 net = nn.Sequential()
 net.add(nn.Dense(1))
@@ -148,16 +175,23 @@ net.add(nn.Dense(1))
 
 ```{.python .input}
 #@tab pytorch
-# `nn` 是神经网络的缩写
+# nn是神经网络的缩写
 from torch import nn
 net = nn.Sequential(nn.Linear(2, 1))
 ```
 
 ```{.python .input}
 #@tab tensorflow
-# `keras` 是TensorFlow的高级API
+# keras是TensorFlow的高级API
 net = tf.keras.Sequential()
 net.add(tf.keras.layers.Dense(1))
+```
+
+```{.python .input}
+#@tab paddle
+# nn是神经网络的缩写
+from paddle import nn
+net = nn.Sequential(nn.Linear(2, 1))
 ```
 
 ## (**初始化模型参数**)
@@ -189,6 +223,15 @@ TensorFlow中的`initializers`模块提供了多种模型参数初始化方法�
 在这里，我们重新创建了`net`。
 :end_tab:
 
+:begin_tab:`paddle`
+正如我们在构造`nn.Linear`时指定输入和输出尺寸一样，
+现在我们能直接访问参数以设定它们的初始值。 
+我们通过`net[0]`选择网络中的第一个图层，
+然后使用`weight`和`bias`方法访问参数。
+我们可以通过调用`nn.initializer.Normal(0, 0.01)`来指定初始化权重的方法。
+默认情况下，偏置参数初始化为零。
+:end_tab:
+
 ```{.python .input}
 from mxnet import init
 net.initialize(init.Normal(sigma=0.01))
@@ -207,8 +250,17 @@ net = tf.keras.Sequential()
 net.add(tf.keras.layers.Dense(1, kernel_initializer=initializer))
 ```
 
+```{.python .input}
+#@tab paddle
+weight_attr = paddle.ParamAttr(initializer=
+                               paddle.nn.initializer.Normal(0, 0.01))
+bias_attr = paddle.ParamAttr(initializer=None)
+net = nn.Sequential(nn.Linear(2, 1, weight_attr=weight_attr,
+                              bias_attr=bias_attr))
+```
+
 :begin_tab:`mxnet`
-上面的代码可能看起来很简单，但是你应该注意到这里的一个细节：
+上面的代码可能看起来很简单，但是这里有一个应该注意到的细节：
 我们正在为网络初始化参数，而Gluon还不知道输入将有多少维!
 网络的输入可能有2维，也可能有2000维。
 Gluon让我们避免了这个问题，在后端执行时，初始化实际上是*推迟*（deferred）执行的，
@@ -221,7 +273,7 @@ Gluon让我们避免了这个问题，在后端执行时，初始化实际上是
 :end_tab:
 
 :begin_tab:`tensorflow`
-上面的代码可能看起来很简单，但是你应该注意到这里的一个细节：
+上面的代码可能看起来很简单，但是这里有一个应该注意到的细节：
 我们正在为网络初始化参数，而Keras还不知道输入将有多少维!
 网络的输入可能有2维，也可能有2000维。
 Keras让我们避免了这个问题，在后端执行时，初始化实际上是*推迟*（deferred）执行的。
@@ -246,6 +298,11 @@ Keras让我们避免了这个问题，在后端执行时，初始化实际上是
 默认情况下，它返回所有样本损失的平均值。
 :end_tab:
 
+:begin_tab:`paddle`
+[**计算均方误差使用的是`MSELoss`类，也称为平方$L_2$范数**]。
+默认情况下，它返回所有样本损失的平均值。
+:end_tab:
+
 ```{.python .input}
 loss = gluon.loss.L2Loss()
 ```
@@ -258,6 +315,11 @@ loss = nn.MSELoss()
 ```{.python .input}
 #@tab tensorflow
 loss = tf.keras.losses.MeanSquaredError()
+```
+
+```{.python .input}
+#@tab paddle
+loss = nn.MSELoss()
 ```
 
 ## 定义优化算法
@@ -285,6 +347,12 @@ Keras在`optimizers`模块中实现了该算法的许多变种。
 小批量随机梯度下降只需要设置`learning_rate`值，这里设置为0.03。
 :end_tab:
 
+:begin_tab:`paddle`
+小批量随机梯度下降算法是一种优化神经网络的标准工具，
+PaddlePaddle在`optimizer`模块中实现了该算法的许多变种。
+小批量随机梯度下降只需要设置`learning_rate`值，这里设置为0.03。
+:end_tab:
+
 ```{.python .input}
 from mxnet import gluon
 trainer = gluon.Trainer(net.collect_params(), 'sgd', {'learning_rate': 0.03})
@@ -298,6 +366,12 @@ trainer = torch.optim.SGD(net.parameters(), lr=0.03)
 ```{.python .input}
 #@tab tensorflow
 trainer = tf.keras.optimizers.SGD(learning_rate=0.03)
+```
+
+```{.python .input}
+#@tab paddle
+trainer =  paddle.optimizer.SGD(learning_rate=0.03,
+                                parameters=net.parameters())
 ```
 
 ## 训练
@@ -355,6 +429,19 @@ for epoch in range(num_epochs):
     print(f'epoch {epoch + 1}, loss {l:f}')
 ```
 
+```{.python .input}
+#@tab paddle
+num_epochs = 3
+for epoch in range(num_epochs):
+    for i,(X, y) in enumerate (data_iter()):
+        l = loss(net(X) ,y)
+        trainer.clear_grad()
+        l.backward()
+        trainer.step()
+    l = loss(net(features), labels)
+    print(f'epoch {epoch + 1},'f'loss {l}')
+```
+
 下面我们[**比较生成数据集的真实参数和通过有限数据训练获得的模型参数**]。
 要访问参数，我们首先从`net`访问所需的层，然后读取该层的权重和偏置。
 正如在从零开始实现中一样，我们估计得到的参数与生成数据的真实参数非常接近。
@@ -382,6 +469,14 @@ b = net.get_weights()[1]
 print('b的估计误差：', true_b - b)
 ```
 
+```{.python .input}
+#@tab paddle
+w = net[0].weight
+print('w的估计误差：', true_w - w.reshape(true_w.shape))
+b = net[0].bias
+print('b的估计误差：', true_b - b)
+```
+
 ## 小结
 
 :begin_tab:`mxnet`
@@ -406,24 +501,23 @@ print('b的估计误差：', true_b - b)
 
 ## 练习
 
-:begin_tab:`mxnet`
-1. 如果我们用`l = loss(output, y).mean()`替换`l = loss(output, y)`。为了使代码的行为相同，需要将`trainer.step(batch_size)`更改为`trainer.step(1)`，这是为什么？
-1. 查看MXNet文档，了解模块`gluon.loss`和`init`中提供了哪些损失函数和初始化方法。用Huber损失代替原损失。
-1. 你如何访问`dense.weight`的梯度？
+1. 如果将小批量的总损失替换为小批量损失的平均值，需要如何更改学习率？
+1. 查看深度学习框架文档，它们提供了哪些损失函数和初始化方法？用Huber损失代替原损失，即
+    $$l(y,y') = \begin{cases}|y-y'| -\frac{\sigma}{2} & \text{ if } |y-y'| > \sigma \\ \frac{1}{2 \sigma} (y-y')^2 & \text{ 其它情况}\end{cases}$$
+1. 如何访问线性回归的梯度？
 
+:begin_tab:`mxnet`
 [Discussions](https://discuss.d2l.ai/t/1782)
 :end_tab:
 
 :begin_tab:`pytorch`
-1. 如果我们用`nn.MSELoss(reduction='sum')`替换`nn.MSELoss()`，为了使代码的行为相同，需要怎么更改学习速率？为什么？
-1. 查看PyTorch文档，了解其提供了哪些损失函数和初始化方法。用Huber损失代替原损失。
-1. 你如何访问`net[0].weight`的梯度？
-
 [Discussions](https://discuss.d2l.ai/t/1781)
 :end_tab:
 
 :begin_tab:`tensorflow`
-1. 查看TensorFlow文档，了解其提供了哪些损失函数和初始化方法。用Huber损失代替原损失。
-
 [Discussions](https://discuss.d2l.ai/t/1780)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11690)
 :end_tab:

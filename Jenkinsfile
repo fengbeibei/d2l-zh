@@ -7,7 +7,7 @@ stage("Build and Publish") {
   def TARGET_BRANCH = env.CHANGE_TARGET ? env.CHANGE_TARGET : env.BRANCH_NAME
   // such as d2l-en-master
   def TASK = REPO_NAME + '-' + TARGET_BRANCH
-  node {
+  node('d2l-worker') {
     ws("workspace/${TASK}") {
       checkout scm
       // conda environment
@@ -16,8 +16,6 @@ stage("Build and Publish") {
       sh label: "Build Environment", script: """set -ex
       conda env update -n ${ENV_NAME} -f static/build.yml
       conda activate ${ENV_NAME}
-      pip uninstall -y d2l
-      pip install d2l==0.17.0
       pip uninstall -y d2lbook
       pip install git+https://github.com/d2l-ai/d2l-book
       pip list
@@ -53,6 +51,13 @@ stage("Build and Publish") {
       ./static/cache.sh store _build/eval_tensorflow/data
       """
 
+      sh label: "Execute Notebooks [Paddlepaddle]", script: """set -ex
+      conda activate ${ENV_NAME}
+      ./static/cache.sh restore _build/eval_paddle/data
+      d2lbook build eval --tab paddle
+      ./static/cache.sh store _build/eval_paddle/data
+      """
+
       sh label:"Build HTML", script:"""set -ex
       conda activate ${ENV_NAME}
       ./static/build_html.sh
@@ -72,13 +77,13 @@ stage("Build and Publish") {
         sh label:"Release", script:"""set -ex
         conda activate ${ENV_NAME}
         d2lbook build pkg
-        d2lbook deploy html pdf pkg colab sagemaker --s3 s3://zh-v2.d2l.ai
+        d2lbook deploy html pdf slides pkg colab sagemaker --s3 s3://${LANG}-v2.d2l.ai
         """
 
       } else {
         sh label:"Publish", script:"""set -ex
         conda activate ${ENV_NAME}
-        d2lbook deploy html pdf slides --s3 s3://preview.d2l.ai/${JOB_NAME}/
+        d2lbook deploy html pdf --s3 s3://preview.d2l.ai/${JOB_NAME}/
         """
         if (env.BRANCH_NAME.startsWith("PR-")) {
             pullRequest.comment("Job ${JOB_NAME}/${BUILD_NUMBER} is complete. \nCheck the results at http://preview.d2l.ai/${JOB_NAME}/")

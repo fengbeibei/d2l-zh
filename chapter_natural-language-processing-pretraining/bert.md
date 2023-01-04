@@ -21,7 +21,7 @@
 
 如我们所见，ELMo对上下文进行双向编码，但使用特定于任务的架构；而GPT是任务无关的，但是从左到右编码上下文。BERT（来自Transformers的双向编码器表示）结合了这两个方面的优点。它对上下文进行双向编码，并且对于大多数的自然语言处理任务 :cite:`Devlin.Chang.Lee.ea.2018`只需要最少的架构改变。通过使用预训练的Transformer编码器，BERT能够基于其双向上下文表示任何词元。在下游任务的监督学习过程中，BERT在两个方面与GPT相似。首先，BERT表示将被输入到一个添加的输出层中，根据任务的性质对模型架构进行最小的更改，例如预测每个词元与预测整个序列。其次，对预训练Transformer编码器的所有参数进行微调，而额外的输出层将从头开始训练。 :numref:`fig_elmo-gpt-bert` 描述了ELMo、GPT和BERT之间的差异。
 
-![ELMo、GPT和BERT的比较。](../img/elmo-gpt-bert.svg)
+![ELMo、GPT和BERT的比较](../img/elmo-gpt-bert.svg)
 :label:`fig_elmo-gpt-bert`
 
 BERT进一步改进了11种自然语言处理任务的技术水平，这些任务分为以下几个大类：（1）单一文本分类（如情感分析）、（2）文本对分类（如自然语言推断）、（3）问答、（4）文本标记（如命名实体识别）。从上下文敏感的ELMo到任务不可知的GPT和BERT，它们都是在2018年提出的。概念上简单但经验上强大的自然语言深度表示预训练已经彻底改变了各种自然语言处理任务的解决方案。
@@ -43,6 +43,15 @@ import torch
 from torch import nn
 ```
 
+```{.python .input}
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
+from paddle import nn
+```
+
 ## 输入表示
 :label:`subsec_bert_input_rep`
 
@@ -56,7 +65,7 @@ from torch import nn
 #@tab all
 #@save
 def get_tokens_and_segments(tokens_a, tokens_b=None):
-    """获取输入序列的词元及其片段索引。"""
+    """获取输入序列的词元及其片段索引"""
     tokens = ['<cls>'] + tokens_a + ['<sep>']
     # 0和1分别标记片段A和B
     segments = [0] * (len(tokens_a) + 2)
@@ -69,7 +78,7 @@ def get_tokens_and_segments(tokens_a, tokens_b=None):
 BERT选择Transformer编码器作为其双向架构。在Transformer编码器中常见是，位置嵌入被加入到输入序列的每个位置。然而，与原始的Transformer编码器不同，BERT使用*可学习的*位置嵌入。总之， 
 :numref:`fig_bert-input`表明BERT输入序列的嵌入是词元嵌入、片段嵌入和位置嵌入的和。
 
-![BERT输入序列的嵌入是词元嵌入、片段嵌入和位置嵌入的和。](../img/bert-input.svg)
+![BERT输入序列的嵌入是词元嵌入、片段嵌入和位置嵌入的和](../img/bert-input.svg)
 :label:`fig_bert-input`
 
 下面的`BERTEncoder`类类似于 :numref:`sec_transformer`中实现的`TransformerEncoder`类。与`TransformerEncoder`不同，`BERTEncoder`使用片段嵌入和可学习的位置嵌入。
@@ -77,7 +86,7 @@ BERT选择Transformer编码器作为其双向架构。在Transformer编码器中
 ```{.python .input}
 #@save
 class BERTEncoder(nn.Block):
-    """BERT encoder."""
+    """BERT编码器"""
     def __init__(self, vocab_size, num_hiddens, ffn_num_hiddens, num_heads,
                  num_layers, dropout, max_len=1000, **kwargs):
         super(BERTEncoder, self).__init__(**kwargs)
@@ -92,7 +101,7 @@ class BERTEncoder(nn.Block):
                                              shape=(1, max_len, num_hiddens))
 
     def forward(self, tokens, segments, valid_lens):
-        # 在以下代码段中，`X`的形状保持不变：（批量大小，最大序列长度，`num_hiddens`）
+        # 在以下代码段中，X的形状保持不变：（批量大小，最大序列长度，num_hiddens）
         X = self.token_embedding(tokens) + self.segment_embedding(segments)
         X = X + self.pos_embedding.data(ctx=X.ctx)[:, :X.shape[1], :]
         for blk in self.blks:
@@ -104,7 +113,7 @@ class BERTEncoder(nn.Block):
 #@tab pytorch
 #@save
 class BERTEncoder(nn.Module):
-    """BERT encoder."""
+    """BERT编码器"""
     def __init__(self, vocab_size, num_hiddens, norm_shape, ffn_num_input,
                  ffn_num_hiddens, num_heads, num_layers, dropout,
                  max_len=1000, key_size=768, query_size=768, value_size=768,
@@ -122,9 +131,40 @@ class BERTEncoder(nn.Module):
                                                       num_hiddens))
 
     def forward(self, tokens, segments, valid_lens):
-        # 在以下代码段中，`X`的形状保持不变：（批量大小，最大序列长度，`num_hiddens`）
+        # 在以下代码段中，X的形状保持不变：（批量大小，最大序列长度，num_hiddens）
         X = self.token_embedding(tokens) + self.segment_embedding(segments)
         X = X + self.pos_embedding.data[:, :X.shape[1], :]
+        for blk in self.blks:
+            X = blk(X, valid_lens)
+        return X
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+class BERTEncoder(nn.Layer):
+    """BERT编码器"""
+    def __init__(self, vocab_size, num_hiddens, norm_shape, ffn_num_input,
+                 ffn_num_hiddens, num_heads, num_layers, dropout,
+                 max_len=1000, key_size=768, query_size=768, value_size=768,
+                 **kwargs):
+        super(BERTEncoder, self).__init__(**kwargs)
+        self.token_embedding = nn.Embedding(vocab_size, num_hiddens)
+        self.segment_embedding = nn.Embedding(2, num_hiddens)
+        self.blks = nn.Sequential()
+        for i in range(num_layers):
+            self.blks.add_sublayer(f"{i}", d2l.EncoderBlock(
+                key_size, query_size, value_size, num_hiddens, norm_shape,
+                ffn_num_input, ffn_num_hiddens, num_heads, dropout, True))
+        # 在BERT中，位置嵌入是可学习的，因此我们创建一个足够长的位置嵌入参数
+        x = paddle.randn([1, max_len, num_hiddens])    
+        self.pos_embedding = paddle.create_parameter(shape=x.shape, dtype=str(x.numpy().dtype),
+                                                     default_initializer=paddle.nn.initializer.Assign(x))
+
+    def forward(self, tokens, segments, valid_lens):
+        # 在以下代码段中，X的形状保持不变：（批量大小，最大序列长度，num_hiddens）
+        X = self.token_embedding(tokens) + self.segment_embedding(segments)
+        X = X + self.pos_embedding[:, :X.shape[1], :]
         for blk in self.blks:
             X = blk(X, valid_lens)
         return X
@@ -141,7 +181,7 @@ encoder.initialize()
 ```
 
 ```{.python .input}
-#@tab pytorch
+#@tab pytorch, paddle
 vocab_size, num_hiddens, ffn_num_hiddens, num_heads = 10000, 768, 1024, 4
 norm_shape, ffn_num_input, num_layers, dropout = [768], 768, 2, 0.2
 encoder = BERTEncoder(vocab_size, num_hiddens, norm_shape, ffn_num_input,
@@ -161,6 +201,14 @@ encoded_X.shape
 #@tab pytorch
 tokens = torch.randint(0, vocab_size, (2, 8))
 segments = torch.tensor([[0, 0, 0, 0, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1, 1, 1]])
+encoded_X = encoder(tokens, segments, None)
+encoded_X.shape
+```
+
+```{.python .input}
+#@tab paddle
+tokens = paddle.randint(0, vocab_size, (2, 8))
+segments = paddle.to_tensor([[0, 0, 0, 0, 1, 1, 1, 1], [0, 0, 0, 1, 1, 1, 1, 1]])
 encoded_X = encoder(tokens, segments, None)
 encoded_X.shape
 ```
@@ -202,8 +250,8 @@ class MaskLM(nn.Block):
         pred_positions = pred_positions.reshape(-1)
         batch_size = X.shape[0]
         batch_idx = np.arange(0, batch_size)
-        # 假设`batch_size=2，`num_pred_positions`=3
-        # 那么`batch_idx`是`np.array（[0,0,0,1,1]）`
+        # 假设batch_size=2，num_pred_positions=3
+        # 那么batch_idx是np.array（[0,0,0,1,1,1]）
         batch_idx = np.repeat(batch_idx, num_pred_positions)
         masked_X = X[batch_idx, pred_positions]
         masked_X = masked_X.reshape((batch_size, num_pred_positions, -1))
@@ -228,9 +276,35 @@ class MaskLM(nn.Module):
         pred_positions = pred_positions.reshape(-1)
         batch_size = X.shape[0]
         batch_idx = torch.arange(0, batch_size)
-        # 假设`batch_size=2，`num_pred_positions`=3
-        # 那么`batch_idx`是`np.array（[0,0,0,1,1]）`
+        # 假设batch_size=2，num_pred_positions=3
+        # 那么batch_idx是np.array（[0,0,0,1,1,1]）
         batch_idx = torch.repeat_interleave(batch_idx, num_pred_positions)
+        masked_X = X[batch_idx, pred_positions]
+        masked_X = masked_X.reshape((batch_size, num_pred_positions, -1))
+        mlm_Y_hat = self.mlp(masked_X)
+        return mlm_Y_hat
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+class MaskLM(nn.Layer):
+    """BERT的掩蔽语言模型任务"""
+    def __init__(self, vocab_size, num_hiddens, num_inputs=768, **kwargs):
+        super(MaskLM, self).__init__(**kwargs)
+        self.mlp = nn.Sequential(nn.Linear(num_inputs, num_hiddens),
+                                 nn.ReLU(),
+                                 nn.LayerNorm(num_hiddens),
+                                 nn.Linear(num_hiddens, vocab_size))
+
+    def forward(self, X, pred_positions):
+        num_pred_positions = pred_positions.shape[1]
+        pred_positions = pred_positions.reshape([-1])
+        batch_size = X.shape[0]
+        batch_idx = paddle.arange(0, batch_size)
+        # 假设batch_size=2，num_pred_positions=3
+        # 那么batch_idx是np.array（[0,0,0,1,1]）
+        batch_idx = paddle.repeat_interleave(batch_idx, num_pred_positions)
         masked_X = X[batch_idx, pred_positions]
         masked_X = masked_X.reshape((batch_size, num_pred_positions, -1))
         mlm_Y_hat = self.mlp(masked_X)
@@ -255,6 +329,14 @@ mlm_Y_hat = mlm(encoded_X, mlm_positions)
 mlm_Y_hat.shape
 ```
 
+```{.python .input}
+#@tab paddle
+mlm = MaskLM(vocab_size, num_hiddens)
+mlm_positions = paddle.to_tensor([[1, 5, 2], [6, 1, 5]])
+mlm_Y_hat = mlm(encoded_X, mlm_positions)
+mlm_Y_hat.shape
+```
+
 通过掩码下的预测词元`mlm_Y`的真实标签`mlm_Y_hat`，我们可以计算在BERT预训练中的遮蔽语言模型任务的交叉熵损失。
 
 ```{.python .input}
@@ -269,6 +351,14 @@ mlm_l.shape
 mlm_Y = torch.tensor([[7, 8, 9], [10, 20, 30]])
 loss = nn.CrossEntropyLoss(reduction='none')
 mlm_l = loss(mlm_Y_hat.reshape((-1, vocab_size)), mlm_Y.reshape(-1))
+mlm_l.shape
+```
+
+```{.python .input}
+#@tab paddle
+mlm_Y = paddle.to_tensor([[7, 8, 9], [10, 20, 30]])
+loss = nn.CrossEntropyLoss(reduction='none')
+mlm_l = loss(mlm_Y_hat.reshape((-1, vocab_size)), mlm_Y.reshape([-1]))
 mlm_l.shape
 ```
 
@@ -288,7 +378,7 @@ class NextSentencePred(nn.Block):
         self.output = nn.Dense(2)
 
     def forward(self, X):
-        # `X`的形状： (batch size, `num_hiddens`)
+        # X的形状：(batchsize，num_hiddens)
         return self.output(X)
 ```
 
@@ -302,7 +392,21 @@ class NextSentencePred(nn.Module):
         self.output = nn.Linear(num_inputs, 2)
 
     def forward(self, X):
-        # `X`的形状： (batch size, `num_hiddens`)
+        # X的形状：(batchsize,num_hiddens)
+        return self.output(X)
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+class NextSentencePred(nn.Layer):
+    """BERT的下一句预测任务"""
+    def __init__(self, num_inputs, **kwargs):
+        super(NextSentencePred, self).__init__(**kwargs)
+        self.output = nn.Linear(num_inputs, 2)
+
+    def forward(self, X):
+        # X的形状：(batchsize,num_hiddens)
         return self.output(X)
 ```
 
@@ -318,7 +422,16 @@ nsp_Y_hat.shape
 ```{.python .input}
 #@tab pytorch
 encoded_X = torch.flatten(encoded_X, start_dim=1)
-# NSP的输入形状: (batch size, `num_hiddens`)
+# NSP的输入形状:(batchsize，num_hiddens)
+nsp = NextSentencePred(encoded_X.shape[-1])
+nsp_Y_hat = nsp(encoded_X)
+nsp_Y_hat.shape
+```
+
+```{.python .input}
+#@tab paddle
+encoded_X = paddle.flatten(encoded_X, start_axis=1)
+# NSP的输入形状:(batchsize，num_hiddens)
 nsp = NextSentencePred(encoded_X.shape[-1])
 nsp_Y_hat = nsp(encoded_X)
 nsp_Y_hat.shape
@@ -335,6 +448,13 @@ nsp_l.shape
 ```{.python .input}
 #@tab pytorch
 nsp_y = torch.tensor([0, 1])
+nsp_l = loss(nsp_Y_hat, nsp_y)
+nsp_l.shape
+```
+
+```{.python .input}
+#@tab paddle
+nsp_y = paddle.to_tensor([0, 1])
 nsp_l = loss(nsp_Y_hat, nsp_y)
 nsp_l.shape
 ```
@@ -358,13 +478,14 @@ class BERTModel(nn.Block):
         self.mlm = MaskLM(vocab_size, num_hiddens)
         self.nsp = NextSentencePred()
 
-    def forward(self, tokens, segments, valid_lens=None, pred_positions=None):
+    def forward(self, tokens, segments, valid_lens=None, 
+                pred_positions=None):
         encoded_X = self.encoder(tokens, segments, valid_lens)
         if pred_positions is not None:
             mlm_Y_hat = self.mlm(encoded_X, pred_positions)
         else:
             mlm_Y_hat = None
-        # 用于下一句预测的多层感知机分类器的隐藏层。0是“<cls>”标记的索引。
+        # 用于下一句预测的多层感知机分类器的隐藏层，0是“<cls>”标记的索引
         nsp_Y_hat = self.nsp(self.hidden(encoded_X[:, 0, :]))
         return encoded_X, mlm_Y_hat, nsp_Y_hat
 ```
@@ -389,13 +510,46 @@ class BERTModel(nn.Module):
         self.mlm = MaskLM(vocab_size, num_hiddens, mlm_in_features)
         self.nsp = NextSentencePred(nsp_in_features)
 
-    def forward(self, tokens, segments, valid_lens=None, pred_positions=None):
+    def forward(self, tokens, segments, valid_lens=None, 
+                pred_positions=None):
         encoded_X = self.encoder(tokens, segments, valid_lens)
         if pred_positions is not None:
             mlm_Y_hat = self.mlm(encoded_X, pred_positions)
         else:
             mlm_Y_hat = None
-        # 用于下一句预测的多层感知机分类器的隐藏层。0是“<cls>”标记的索引。
+        # 用于下一句预测的多层感知机分类器的隐藏层，0是“<cls>”标记的索引
+        nsp_Y_hat = self.nsp(self.hidden(encoded_X[:, 0, :]))
+        return encoded_X, mlm_Y_hat, nsp_Y_hat
+```
+
+```{.python .input}
+#@tab paddle
+#@save
+class BERTModel(nn.Layer):
+    """BERT模型"""
+    def __init__(self, vocab_size, num_hiddens, norm_shape, ffn_num_input,
+                 ffn_num_hiddens, num_heads, num_layers, dropout,
+                 max_len=1000, key_size=768, query_size=768, value_size=768,
+                 hid_in_features=768, mlm_in_features=768,
+                 nsp_in_features=768):
+        super(BERTModel, self).__init__()
+        self.encoder = BERTEncoder(vocab_size, num_hiddens, norm_shape,
+                    ffn_num_input, ffn_num_hiddens, num_heads, num_layers,
+                    dropout, max_len=max_len, key_size=key_size,
+                    query_size=query_size, value_size=value_size)
+        self.hidden = nn.Sequential(nn.Linear(hid_in_features, num_hiddens),
+                                    nn.Tanh())
+        self.mlm = MaskLM(vocab_size, num_hiddens, mlm_in_features)
+        self.nsp = NextSentencePred(nsp_in_features)
+
+    def forward(self, tokens, segments, valid_lens=None,
+                pred_positions=None):
+        encoded_X = self.encoder(tokens, segments, valid_lens)
+        if pred_positions is not None:
+            mlm_Y_hat = self.mlm(encoded_X, pred_positions)
+        else:
+            mlm_Y_hat = None
+        # 用于下一句预测的多层感知机分类器的隐藏层，0是“<cls>”标记的索引
         nsp_Y_hat = self.nsp(self.hidden(encoded_X[:, 0, :]))
         return encoded_X, mlm_Y_hat, nsp_Y_hat
 ```
@@ -416,9 +570,13 @@ class BERTModel(nn.Module):
 1. 在BERT的原始实现中，`BERTEncoder`中的位置前馈网络（通过`d2l.EncoderBlock`）和`MaskLM`中的全连接层都使用高斯误差线性单元（Gaussian error linear unit，GELU） :cite:`Hendrycks.Gimpel.2016`作为激活函数。研究GELU与ReLU之间的差异。
 
 :begin_tab:`mxnet`
-[Discussions](https://discuss.d2l.ai/t/388)
+[Discussions](https://discuss.d2l.ai/t/5749)
 :end_tab:
 
 :begin_tab:`pytorch`
-[Discussions](https://discuss.d2l.ai/t/1490)
+[Discussions](https://discuss.d2l.ai/t/5750)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11820)
 :end_tab:

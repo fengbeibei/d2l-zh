@@ -10,7 +10,7 @@
 
 首先，我们暂时忽略通道（第三维）这一情况，看看如何处理二维图像数据和隐藏表示。在 :numref:`fig_correlation`中，输入是高度为$3$、宽度为$3$的二维张量（即形状为$3 \times 3$）。卷积核的高度和宽度都是$2$，而卷积核窗口（或卷积窗口）的形状由内核的高度和宽度决定（即$2 \times 2$）。
 
-![二维互相关运算。阴影部分是第一个输出元素，以及用于计算这个输出的输入和核张量元素：$0\times0+1\times1+3\times2+4\times3=19$.](../img/correlation.svg)
+![二维互相关运算。阴影部分是第一个输出元素，以及用于计算输出的输入张量元素和核张量元素：$0\times0+1\times1+3\times2+4\times3=19$.](../img/correlation.svg)
 :label:`fig_correlation`
 
 在二维互相关运算中，卷积窗口从输入张量的左上角开始，从左到右、从上到下滑动。
@@ -30,7 +30,7 @@ $$
 
 $$(n_h-k_h+1) \times (n_w-k_w+1).$$
 
-这是因为我们需要足够的空间在图像上“移动”卷积核。稍后，我们将看到如何通过在图像边界周围填充零来保证有足够的空间移动内核，从而保持输出大小不变。
+这是因为我们需要足够的空间在图像上“移动”卷积核。稍后，我们将看到如何通过在图像边界周围填充零来保证有足够的空间移动卷积核，从而保持输出大小不变。
 接下来，我们在`corr2d`函数中实现如上过程，该函数接受输入张量`X`和卷积核张量`K`，并返回输出张量`Y`。
 
 ```{.python .input}
@@ -48,9 +48,18 @@ from torch import nn
 ```
 
 ```{.python .input}
-#@tab mxnet, pytorch
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
+from paddle import nn
+```
+
+```{.python .input}
+#@tab mxnet, pytorch, paddle
 def corr2d(X, K):  #@save
-    """计算二维互相关运算。"""
+    """计算二维互相关运算"""
     h, w = K.shape
     Y = d2l.zeros((X.shape[0] - h + 1, X.shape[1] - w + 1))
     for i in range(Y.shape[0]):
@@ -65,7 +74,7 @@ from d2l import tensorflow as d2l
 import tensorflow as tf
 
 def corr2d(X, K):  #@save
-    """计算二维互相关运算。"""
+    """计算二维互相关运算"""
     h, w = K.shape
     Y = tf.Variable(tf.zeros((X.shape[0] - h + 1, X.shape[1] - w + 1)))
     for i in range(Y.shape[0]):
@@ -132,6 +141,18 @@ class Conv2D(tf.keras.layers.Layer):
         return corr2d(inputs, self.weight) + self.bias
 ```
 
+```{.python .input}
+#@tab paddle
+class Conv2D(nn.Layer):
+    def __init__(self, kernel_size):
+        super().__init__()
+        self.weight = paddle.ParamAttr(paddle.rand(kernel_size))
+        self.bias = paddle.ParamAttr(paddle.zeros(1))
+
+    def forward(self, x):
+        return corr2d(x, self.weight) + self.bias
+```
+
 高度和宽度分别为$h$和$w$的卷积核可以被称为$h \times w$卷积或$h \times w$卷积核。
 我们也将带有$h \times w$卷积核的卷积层称为$h \times w$卷积层。
 
@@ -141,7 +162,7 @@ class Conv2D(tf.keras.layers.Layer):
 首先，我们构造一个$6\times 8$像素的黑白图像。中间四列为黑色（$0$），其余像素为白色（$1$）。
 
 ```{.python .input}
-#@tab mxnet, pytorch
+#@tab mxnet, pytorch, paddle
 X = d2l.ones((6, 8))
 X[:, 2:6] = 0
 X
@@ -181,7 +202,7 @@ corr2d(d2l.transpose(X), K)
 
 ## 学习卷积核
 
-如果我们只需寻找黑白边缘，那么以上`[1, -1]`的边缘检测器足以。然而，当有了更复杂数值的卷积核，或者连续的卷积层时，我们不可能手动设计过滤器。那么我们是否可以[**学习由`X`生成`Y`的卷积核**]呢？
+如果我们只需寻找黑白边缘，那么以上`[1, -1]`的边缘检测器足以。然而，当有了更复杂数值的卷积核，或者连续的卷积层时，我们不可能手动设计滤波器。那么我们是否可以[**学习由`X`生成`Y`的卷积核**]呢？
 
 现在让我们看看是否可以通过仅查看“输入-输出”对来学习由`X`生成`Y`的卷积核。
 我们先构造一个卷积层，并将其卷积核初始化为随机张量。接下来，在每次迭代中，我们比较`Y`与卷积层输出的平方误差，然后计算梯度来更新卷积核。为了简单起见，我们在此使用内置的二维卷积层，并忽略偏置。
@@ -207,7 +228,7 @@ for i in range(10):
     # 迭代卷积核
     conv2d.weight.data()[:] -= lr * conv2d.weight.grad()
     if (i + 1) % 2 == 0:
-        print(f'batch {i+1}, loss {float(l.sum()):.3f}')
+        print(f'epoch {i+1}, loss {float(l.sum()):.3f}')
 ```
 
 ```{.python .input}
@@ -229,7 +250,7 @@ for i in range(10):
     # 迭代卷积核
     conv2d.weight.data[:] -= lr * conv2d.weight.grad
     if (i + 1) % 2 == 0:
-        print(f'batch {i+1}, loss {l.sum():.3f}')
+        print(f'epoch {i+1}, loss {l.sum():.3f}')
 ```
 
 ```{.python .input}
@@ -255,7 +276,30 @@ for i in range(10):
         weights[0] = conv2d.weights[0] - update
         conv2d.set_weights(weights)
         if (i + 1) % 2 == 0:
-            print(f'batch {i+1}, loss {tf.reduce_sum(l):.3f}')
+            print(f'epoch {i+1}, loss {tf.reduce_sum(l):.3f}')
+```
+
+```{.python .input}
+#@tab paddle
+# 构造一个二维卷积层，它具有1个输出通道和形状为（1，2）的卷积核
+conv2d = nn.Conv2D(1, 1, kernel_size=(1, 2))
+
+# 这个二维卷积层使用四维输入和输出格式（批量大小、通道、高度、宽度），
+# 其中批量大小和通道数都为1
+X = X.reshape((1, 1, 6, 8))
+Y = Y.reshape((1, 1, 6, 7))
+lr = 3e-2  # 学习率
+
+for i in range(10):
+    Y_hat = conv2d(X)
+    l = (Y_hat - Y) ** 2
+    conv2d.clear_gradients()
+    l.sum().backward()
+    # 迭代卷积核
+    with paddle.no_grad():
+        conv2d.weight[:] -= lr * conv2d.weight.grad
+    if (i + 1) % 2 == 0:
+        print(f'epoch {i+1}, loss {l.sum().item():.3f}')
 ```
 
 在$10$次迭代之后，误差已经降到足够低。现在我们来看看我们[**所学的卷积核的权重张量**]。
@@ -274,12 +318,17 @@ d2l.reshape(conv2d.weight.data, (1, 2))
 d2l.reshape(conv2d.get_weights()[0], (1, 2))
 ```
 
-细心的你一定会发现，我们学习到的卷积核权重非常接近我们之前定义的卷积核`K`。
+```{.python .input}
+#@tab paddle
+d2l.reshape(conv2d.weight, (1, 2))
+```
+
+细心的读者一定会发现，我们学习到的卷积核权重非常接近我们之前定义的卷积核`K`。
 
 ## 互相关和卷积
 
 回想一下我们在 :numref:`sec_why-conv`中观察到的互相关和卷积运算之间的对应关系。
-为了得到严格*卷积*运算输出，我们需要执行 :eqref:`eq_2d-conv-discrete`中定义的严格卷积运算，而不是互相关运算。
+为了得到正式的*卷积*运算输出，我们需要执行 :eqref:`eq_2d-conv-discrete`中定义的严格卷积运算，而不是互相关运算。
 幸运的是，它们差别不大，我们只需水平和垂直翻转二维卷积核张量，然后对输入张量执行*互相关*运算。
 
 值得注意的是，由于卷积核是从数据中学习到的，因此无论这些层执行严格的卷积运算还是互相关运算，卷积层的输出都不会受到影响。
@@ -293,12 +342,12 @@ d2l.reshape(conv2d.get_weights()[0], (1, 2))
 ## 特征映射和感受野
 
 如在 :numref:`subsec_why-conv-channels`中所述， :numref:`fig_correlation`中输出的卷积层有时被称为*特征映射*（feature map），因为它可以被视为一个输入映射到下一层的空间维度的转换器。
-在CNN中，对于某一层的任意元素$x$，其*感受野*（receptive field）是指在前向传播期间可能影响$x$计算的所有元素（来自所有先前层）。
+在卷积神经网络中，对于某一层的任意元素$x$，其*感受野*（receptive field）是指在前向传播期间可能影响$x$计算的所有元素（来自所有先前层）。
 
-注意，感受野的覆盖率可能大于某层输入的实际区域大小。让我们用 :numref:`fig_correlation`为例来解释感受野：
-给定$2 \times 2$卷积核，阴影输出元素值$19$的接收域是输入阴影部分的四个元素。
+请注意，感受野可能大于输入的实际大小。让我们用 :numref:`fig_correlation`为例来解释感受野：
+给定$2 \times 2$卷积核，阴影输出元素值$19$的感受野是输入阴影部分的四个元素。
 假设之前输出为$\mathbf{Y}$，其大小为$2 \times 2$，现在我们在其后附加一个卷积层，该卷积层以$\mathbf{Y}$为输入，输出单个元素$z$。
-在这种情况下，$\mathbf{Y}$上的$z$的接收字段包括$\mathbf{Y}$的所有四个元素，而输入的感受野包括最初所有九个输入元素。
+在这种情况下，$\mathbf{Y}$上的$z$的感受野包括$\mathbf{Y}$的所有四个元素，而输入的感受野包括最初所有九个输入元素。
 因此，当一个特征图中的任意元素需要检测更广区域的输入特征时，我们可以构建一个更深的网络。
 
 ## 小结
@@ -317,10 +366,10 @@ d2l.reshape(conv2d.get_weights()[0], (1, 2))
     1. 如果转置`K`会发生什么？
 1. 在我们创建的`Conv2D`自动求导时，有什么错误消息？
 1. 如何通过改变输入张量和卷积核张量，将互相关运算表示为矩阵乘法？
-1. 手工设计一些卷积核：
-    1. 二阶导数的核形式是什么？
-    1. 积分的核形式是什么？
-    1. 得到$d$次导数的最小核大小是多少？
+1. 手工设计一些卷积核。
+    1. 二阶导数的核的形式是什么？
+    1. 积分的核的形式是什么？
+    1. 得到$d$次导数的最小核的大小是多少？
 
 :begin_tab:`mxnet`
 [Discussions](https://discuss.d2l.ai/t/1849)
@@ -332,4 +381,8 @@ d2l.reshape(conv2d.get_weights()[0], (1, 2))
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/1847)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11783)
 :end_tab:

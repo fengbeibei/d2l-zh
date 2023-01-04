@@ -8,7 +8,7 @@
 
 ## 基础
 
-在本节中，我们将探讨更有效的优化算法，尤其是针对实验中常见的某些类型的优化问题。
+本节将探讨更有效的优化算法，尤其是针对实验中常见的某些类型的优化问题。
 
 ### 泄漏平均值
 
@@ -43,7 +43,7 @@ $$\begin{aligned}
 上述推理构成了"加速"梯度方法的基础，例如具有动量的梯度。
 在优化问题条件不佳的情况下（例如，有些方向的进展比其他方向慢得多，类似狭窄的峡谷），"加速"梯度还额外享受更有效的好处。
 此外，它们允许我们对随后的梯度计算平均值，以获得更稳定的下降方向。
-诚然，即使是对于无噪声凸问题，加速度这方面也是为什么动量如此起效的关键原因之一。
+诚然，即使是对于无噪声凸问题，加速度这方面也是动量如此起效的关键原因之一。
 
 正如人们所期望的，由于其功效，动量是深度学习及其后优化中一个深入研究的主题。
 例如，请参阅[文章](https://distill.pub/2017/momentum/）（作者是 :cite:`Goh.2017`)，观看深入分析和互动动画。
@@ -54,14 +54,14 @@ $$\begin{aligned}
 
 ### 条件不佳的问题
 
-为了更好地了解动量法的几何属性，我们复习一下梯度下降。
+为了更好地了解动量法的几何属性，我们复习一下梯度下降，尽管它的目标函数明显不那么令人愉快。
 回想我们在 :numref:`sec_gd`中使用了$f(\mathbf{x}) = x_1^2 + 2 x_2^2$，即中度扭曲的椭球目标。
 我们通过向$x_1$方向伸展它来进一步扭曲这个函数
 
 $$f(\mathbf{x}) = 0.1 x_1^2 + 2 x_2^2.$$
 
 与之前一样，$f$在$(0, 0)$有最小值，
-该函数在$x_1$的方向上非常*平坦。
+该函数在$x_1$的方向上*非常*平坦。
 让我们看看在这个新函数上执行梯度下降时会发生什么。
 
 ```{.python .input}
@@ -99,6 +99,23 @@ d2l.show_trace_2d(f_2d, d2l.train_2d(gd_2d))
 %matplotlib inline
 from d2l import tensorflow as d2l
 import tensorflow as tf
+
+eta = 0.4
+def f_2d(x1, x2):
+    return 0.1 * x1 ** 2 + 2 * x2 ** 2
+def gd_2d(x1, x2, s1, s2):
+    return (x1 - eta * 0.2 * x1, x2 - eta * 4 * x2, 0, 0)
+
+d2l.show_trace_2d(f_2d, d2l.train_2d(gd_2d))
+```
+
+```{.python .input}
+#@tab paddle
+%matplotlib inline
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
 
 eta = 0.4
 def f_2d(x1, x2):
@@ -168,7 +185,8 @@ d2l.show_trace_2d(f_2d, d2l.train_2d(momentum_2d))
 
 回想一下$\mathbf{v}_t = \sum_{\tau = 0}^{t-1} \beta^{\tau} \mathbf{g}_{t-\tau, t-\tau-1}$。
 极限条件下，$\sum_{\tau=0}^\infty \beta^\tau = \frac{1}{1-\beta}$。
-换句话说，我们测中处理可能潜在表现会更好的下降方向。
+换句话说，不同于在梯度下降或者随机梯度下降中取步长$\eta$，我们选取步长$\frac{\eta}{1-\beta}$，同时处理潜在表现可能会更好的下降方向。
+这是集两种好处于一身的做法。
 为了说明$\beta$的不同选择的权重效果如何，请参考下面的图表。
 
 ```{.python .input}
@@ -194,7 +212,7 @@ d2l.plt.legend();
 在下面的实现中，我们称这些变量为`states`。
 
 ```{.python .input}
-#@tab mxnet,pytorch
+#@tab mxnet, pytorch
 def init_momentum_states(feature_dim):
     v_w = d2l.zeros((feature_dim, 1))
     v_b = d2l.zeros(1)
@@ -206,6 +224,14 @@ def init_momentum_states(feature_dim):
 def init_momentum_states(features_dim):
     v_w = tf.Variable(d2l.zeros((features_dim, 1)))
     v_b = tf.Variable(d2l.zeros(1))
+    return (v_w, v_b)
+```
+
+```{.python .input}
+#@tab paddle
+def init_momentum_states(feature_dim):
+    v_w = d2l.zeros((feature_dim, 1))
+    v_b = d2l.zeros([1])
     return (v_w, v_b)
 ```
 
@@ -232,6 +258,19 @@ def sgd_momentum(params, grads, states, hyperparams):
     for p, v, g in zip(params, states, grads):
             v[:].assign(hyperparams['momentum'] * v + g)
             p[:].assign(p - hyperparams['lr'] * v)
+```
+
+```{.python .input}
+#@tab paddle
+def sgd_momentum(params, states, hyperparams):
+    a = []
+    for p, v in zip(params, states):
+        with paddle.no_grad():
+            v[:] = hyperparams['momentum'] * v + p.grad
+            p[:] -= hyperparams['lr'] * v
+        p.grad.zero_()
+        a.append(p)
+    return a
 ```
 
 让我们看看它在实验中是如何运作的。
@@ -282,6 +321,12 @@ d2l.train_concise_ch11(trainer, {'lr': 0.005, 'momentum': 0.9}, data_iter)
 trainer = tf.keras.optimizers.SGD
 d2l.train_concise_ch11(trainer, {'learning_rate': 0.005, 'momentum': 0.9},
                        data_iter)
+```
+
+```{.python .input}
+#@tab paddle
+trainer = paddle.optimizer.Momentum
+d2l.train_concise_ch11(trainer, {'learning_rate': 0.005, 'momentum': 0.9}, data_iter)
 ```
 
 ## 理论分析
@@ -380,7 +425,7 @@ $$
 ## 练习
 
 1. 使用动量超参数和学习率的其他组合，观察和分析不同的实验结果。
-1. 试试梯度下降和动量法来解决一个二次问题，其中你有多个特征值，即$f(x) = \frac{1}{2} \sum_i \lambda_i x_i^2$，例如$\lambda_i = 2^{-i}$。绘制出$x$的值在初始化$x_i = 1$时如何下降。
+1. 试试梯度下降和动量法来解决一个二次问题，其中有多个特征值，即$f(x) = \frac{1}{2} \sum_i \lambda_i x_i^2$，例如$\lambda_i = 2^{-i}$。绘制出$x$的值在初始化$x_i = 1$时如何下降。
 1. 推导$h(\mathbf{x}) = \frac{1}{2} \mathbf{x}^\top \mathbf{Q} \mathbf{x} + \mathbf{x}^\top \mathbf{c} + b$的最小值和最小化器。
 1. 当我们执行带动量法的随机梯度下降时会有什么变化？当我们使用带动量法的小批量随机梯度下降时会发生什么？试验参数如何？
 
@@ -394,4 +439,8 @@ $$
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/4329)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11851)
 :end_tab:

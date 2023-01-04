@@ -69,11 +69,21 @@ import tensorflow as tf
 ```
 
 ```{.python .input}
+#@tab paddle
+%matplotlib inline
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import numpy as np
+import paddle
+```
+
+```{.python .input}
 #@tab all
 def f(x):  # 目标函数
     return x ** 2
 
-def f_grad(x):  # 目标函数的梯度 (导数) 
+def f_grad(x):  # 目标函数的梯度(导数)
     return 2 * x
 ```
 
@@ -81,7 +91,7 @@ def f_grad(x):  # 目标函数的梯度 (导数)
 使用梯度下降法迭代$x$共10次，我们可以看到，$x$的值最终将接近最优解。
 
 ```{.python .input}
-#@tab all
+#@tab mxnet, pytorch, tensorflow
 def gd(eta, f_grad):
     x = 10.0
     results = [x]
@@ -94,13 +104,39 @@ def gd(eta, f_grad):
 results = gd(0.2, f_grad)
 ```
 
+```{.python .input}
+#@tab paddle
+def gd(eta, f_grad):
+    x = 10.0
+    results = [x]
+    for i in range(10):
+        x -= eta * f_grad(x)
+        results.append(float(x))
+    print(f'epoch 10, x: {float(x):f}')
+    return results
+
+results = gd(0.2, f_grad)
+```
+
 对进行$x$优化的过程可以绘制如下。
 
 ```{.python .input}
-#@tab all
+#@tab mxnet, pytorch, tensorflow
 def show_trace(results, f):
     n = max(abs(min(results)), abs(max(results)))
     f_line = d2l.arange(-n, n, 0.01)
+    d2l.set_figsize()
+    d2l.plot([f_line, results], [[f(x) for x in f_line], [
+        f(x) for x in results]], 'x', 'f(x)', fmts=['-', '-o'])
+
+show_trace(results, f)
+```
+
+```{.python .input}
+#@tab paddle
+def show_trace(results, f):
+    n = max(abs(min(results)), abs(max(results)))
+    f_line = d2l.arange(-n, n, 0.01, dtype='float32')
     d2l.set_figsize()
     d2l.plot([f_line, results], [[f(x) for x in f_line], [
         f(x) for x in results]], 'x', 'f(x)', fmts=['-', '-o'])
@@ -156,7 +192,7 @@ show_trace(gd(2, f_grad), f)
 
 现在我们对单变量的情况有了更好的理解，让我们考虑一下$\mathbf{x} = [x_1, x_2, \ldots, x_d]^\top$的情况。
 即目标函数$f: \mathbb{R}^d \to \mathbb{R}$将向量映射成标量。
-相应地，它的梯度也是多元的：它是一个由$d$个偏导数组成的向量：
+相应地，它的梯度也是多元的，它是一个由$d$个偏导数组成的向量：
 
 $$\nabla f(\mathbf{x}) = \bigg[\frac{\partial f(\mathbf{x})}{\partial x_1}, \frac{\partial f(\mathbf{x})}{\partial x_2}, \ldots, \frac{\partial f(\mathbf{x})}{\partial x_d}\bigg]^\top.$$
 
@@ -185,10 +221,10 @@ $$\mathbf{x} \leftarrow \mathbf{x} - \eta \nabla f(\mathbf{x}).$$
 第二个函数会显示$\mathbf{x}$的轨迹。
 
 ```{.python .input}
-#@tab all
+#@tab mxnet, pytorch, tensorflow
 def train_2d(trainer, steps=20, f_grad=None):  #@save
-    """用定制的训练机优化2D目标函数。"""
-    # `s1` 和 `s2` 是稍后将使用的内部状态变量
+    """用定制的训练机优化2D目标函数"""
+    # s1和s2是稍后将使用的内部状态变量
     x1, x2, s1, s2 = -5, -2, 0, 0
     results = [(x1, x2)]
     for i in range(steps):
@@ -201,11 +237,38 @@ def train_2d(trainer, steps=20, f_grad=None):  #@save
     return results
 
 def show_trace_2d(f, results):  #@save
-    """显示优化过程中2D变量的轨迹。"""
+    """显示优化过程中2D变量的轨迹"""
     d2l.set_figsize()
     d2l.plt.plot(*zip(*results), '-o', color='#ff7f0e')
     x1, x2 = d2l.meshgrid(d2l.arange(-5.5, 1.0, 0.1),
                           d2l.arange(-3.0, 1.0, 0.1))
+    d2l.plt.contour(x1, x2, f(x1, x2), colors='#1f77b4')
+    d2l.plt.xlabel('x1')
+    d2l.plt.ylabel('x2')
+```
+
+```{.python .input}
+#@tab paddle
+def train_2d(trainer, steps=20, f_grad=None):  #@save
+    """用定制的训练机优化2D目标函数"""
+    # s1和s2是稍后将使用的内部状态变量
+    x1, x2, s1, s2 = -5, -2, 0, 0
+    results = [(x1, x2)]
+    for i in range(steps):
+        if f_grad:
+            x1, x2, s1, s2 = trainer(x1, x2, s1, s2, f_grad)
+        else:
+            x1, x2, s1, s2 = trainer(x1, x2, s1, s2)
+        results.append((x1, x2))
+    print(f'epoch {i + 1}, x1: {float(x1):f}, x2: {float(x2):f}')
+    return results
+
+def show_trace_2d(f, results):  #@save
+    """显示优化过程中2D变量的轨迹"""
+    d2l.set_figsize()
+    d2l.plt.plot(*zip(*results), '-o', color='#ff7f0e')
+    x1, x2 = d2l.meshgrid(d2l.arange(-5.5, 1.0, 0.1, dtype='float32'),
+                          d2l.arange(-3.0, 1.0, 0.1, dtype='float32'))
     d2l.plt.contour(x1, x2, f(x1, x2), colors='#1f77b4')
     d2l.plt.xlabel('x1')
     d2l.plt.ylabel('x2')
@@ -332,8 +395,9 @@ show_trace(newton(0.5), f)
 
 ### 收敛性分析
 
-在此，我们以三次可微的目标凸函数$f$为例，分析它的牛顿法收敛速度。
-假设它们的二阶导数不为零，即$f'' > 0$。
+在此，我们以部分目标凸函数$f$为例，分析它们的牛顿法收敛速度。
+这些目标凸函数三次可微，而且二阶导数不为零，即$f'' > 0$。
+由于多变量情况下的证明是对以下一维参数情况证明的直接拓展，对我们理解这个问题不能提供更多帮助，因此我们省略了多变量情况的证明。
 
 用$x^{(k)}$表示$x$在第$k^\mathrm{th}$次迭代时的值，
 令$e^{(k)} \stackrel{\mathrm{def}}{=} x^{(k)} - x^*$表示$k^\mathrm{th}$迭代时与最优性的距离。
@@ -347,7 +411,7 @@ $$0 = f'(x^{(k)} - e^{(k)}) = f'(x^{(k)}) - e^{(k)} f''(x^{(k)}) + \frac{1}{2} (
 $$e^{(k)} - \frac{f'(x^{(k)})}{f''(x^{(k)})} = \frac{1}{2} (e^{(k)})^2 \frac{f'''(\xi^{(k)})}{f''(x^{(k)})}.$$
 
 回想之前的方程$x^{(k+1)} = x^{(k)} - f'(x^{(k)}) / f''(x^{(k)})$。
-插入这个更新方程，取两边的绝对值，我们得到
+代入这个更新方程，取两边的绝对值，我们得到
 
 $$\left|e^{(k+1)}\right| = \frac{1}{2}(e^{(k)})^2 \frac{\left|f'''(\xi^{(k)})\right|}{f''(x^{(k)})}.$$
 
@@ -356,9 +420,9 @@ $$\left|e^{(k+1)}\right| = \frac{1}{2}(e^{(k)})^2 \frac{\left|f'''(\xi^{(k)})\ri
 
 $$\left|e^{(k+1)}\right| \leq c (e^{(k)})^2.$$
 
-另一方面，优化研究人员称之为“线性”收敛，而$\left|e^{(k+1)}\right| \leq \alpha \left|e^{(k)}\right|$这样的条件称为“恒定”收敛速度。
+另一方面，优化研究人员称之为“线性”收敛，而将$\left|e^{(k+1)}\right| \leq \alpha \left|e^{(k)}\right|$这样的条件称为“恒定”收敛速度。
 请注意，我们无法估计整体收敛的速度，但是一旦我们接近极小值，收敛将变得非常快。
-另外，这种分析要求$f$在高阶导数上表现良好，即确保$f$在变化他的值方面没有任何“超常”的特性。
+另外，这种分析要求$f$在高阶导数上表现良好，即确保$f$在如何变化它的值方面没有任何“超常”的特性。
 
 ### 预处理
 
@@ -399,15 +463,15 @@ $$\mathbf{x} \leftarrow \mathbf{x} - \eta \mathrm{diag}(\mathbf{H})^{-1} \nabla 
 
 1. 用不同的学习率和目标函数进行梯度下降实验。
 1. 在区间$[a, b]$中实现线搜索以最小化凸函数。
-    1. 你是否需要导数来进行二分搜索，即决定选择$[a, (a+b)/2]$还是$[(a+b)/2, b]$。
+    1. 是否需要导数来进行二分搜索，即决定选择$[a, (a+b)/2]$还是$[(a+b)/2, b]$。
     1. 算法的收敛速度有多快？
     1. 实现该算法，并将其应用于求$\log (\exp(x) + \exp(-2x -3))$的最小值。
 1. 设计一个定义在$\mathbb{R}^2$上的目标函数，它的梯度下降非常缓慢。提示：不同坐标的缩放方式不同。
-1. 使用预处理实现牛顿方法的轻量级版本：
-    1. 使用对角Hessian作为预条件。
+1. 使用预处理实现牛顿方法的轻量版本。
+    1. 使用对角Hessian作为预条件子。
     1. 使用它的绝对值，而不是实际值（可能有符号）。
     1. 将此应用于上述问题。
-1. 将上述算法应用于多个目标函数（凸或非凸）。如果你把坐标旋转$45$度会怎么样？
+1. 将上述算法应用于多个目标函数（凸或非凸）。如果把坐标旋转$45$度会怎么样？
 
 :begin_tab:`mxnet`
 [Discussions](https://discuss.d2l.ai/t/3834)
@@ -419,4 +483,8 @@ $$\mathbf{x} \leftarrow \mathbf{x} - \eta \mathrm{diag}(\mathbf{H})^{-1} \nabla 
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/3835)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11848)
 :end_tab:

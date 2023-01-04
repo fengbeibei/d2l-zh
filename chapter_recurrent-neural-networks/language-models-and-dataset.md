@@ -118,7 +118,7 @@ P(x_1, x_2, x_3, x_4) &=  P(x_1) P(x_2  \mid  x_1) P(x_3  \mid  x_1, x_2) P(x_4 
 $$
 
 通常，涉及一个、两个和三个变量的概率公式分别被称为
-“一元语法”（unigram）、“二元语法”（bigram）和“三元语法”（trigram）模型。
+*一元语法*（unigram）、*二元语法*（bigram）和*三元语法*（trigram）模型。
 下面，我们将学习如何去设计更好的模型。
 
 ## 自然语言统计
@@ -145,6 +145,15 @@ import random
 #@tab tensorflow
 from d2l import tensorflow as d2l
 import tensorflow as tf
+import random
+```
+
+```{.python .input}
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
 import random
 ```
 
@@ -220,12 +229,13 @@ d2l.plot([freqs, bigram_freqs, trigram_freqs], xlabel='token: x',
 ```
 
 这张图非常令人振奋！原因有很多：
-首先，除了一元语法词，单词序列似乎也遵循齐普夫定律，
+
+1. 除了一元语法词，单词序列似乎也遵循齐普夫定律，
 尽管公式 :eqref:`eq_zipf_law`中的指数$\alpha$更小
-（指数的大小受序列长度的影响）。
-其次，词表中$n$元组的数量并没有那么大，这说明语言中存在相当多的结构，
-这些结构给了我们应用模型的希望。
-第三，很多$n$元组很少出现，这使得拉普拉斯平滑非常不适合语言建模。
+（指数的大小受序列长度的影响）；
+2. 词表中$n$元组的数量并没有那么大，这说明语言中存在相当多的结构，
+这些结构给了我们应用模型的希望；
+3. 很多$n$元组很少出现，这使得拉普拉斯平滑非常不适合语言建模。
 作为代替，我们将使用基于深度学习的模型。
 
 ## 读取长序列数据
@@ -278,23 +288,23 @@ d2l.plot([freqs, bigram_freqs, trigram_freqs], xlabel='token: x',
 #@tab all
 def seq_data_iter_random(corpus, batch_size, num_steps):  #@save
     """使用随机抽样生成一个小批量子序列"""
-    # 从随机偏移量开始对序列进行分区，随机范围包括`num_steps - 1`
+    # 从随机偏移量开始对序列进行分区，随机范围包括num_steps-1
     corpus = corpus[random.randint(0, num_steps - 1):]
     # 减去1，是因为我们需要考虑标签
     num_subseqs = (len(corpus) - 1) // num_steps
-    # 长度为`num_steps`的子序列的起始索引
+    # 长度为num_steps的子序列的起始索引
     initial_indices = list(range(0, num_subseqs * num_steps, num_steps))
     # 在随机抽样的迭代过程中，
     # 来自两个相邻的、随机的、小批量中的子序列不一定在原始序列上相邻
     random.shuffle(initial_indices)
 
     def data(pos):
-        # 返回从`pos`位置开始的长度为`num_steps`的序列
+        # 返回从pos位置开始的长度为num_steps的序列
         return corpus[pos: pos + num_steps]
 
     num_batches = num_subseqs // batch_size
     for i in range(0, batch_size * num_batches, batch_size):
-        # 在这里，`initial_indices`包含子序列的随机起始索引
+        # 在这里，initial_indices包含子序列的随机起始索引
         initial_indices_per_batch = initial_indices[i: i + batch_size]
         X = [data(j) for j in initial_indices_per_batch]
         Y = [data(j + 1) for j in initial_indices_per_batch]
@@ -349,6 +359,23 @@ def seq_data_iter_sequential(corpus, batch_size, num_steps):  #@save
     Ys = d2l.reshape(Ys, (batch_size, -1))
     num_batches = Xs.shape[1] // num_steps
     for i in range(0, num_batches * num_steps, num_steps):
+        X = Xs[:, i: i + num_steps]
+        Y = Ys[:, i: i + num_steps]
+        yield X, Y
+```
+
+```{.python .input}
+#@tab paddle
+def seq_data_iter_sequential(corpus, batch_size, num_steps):  #@save
+    """使用顺序分区生成一个小批量子序列"""
+    # 从随机偏移量开始划分序列
+    offset = random.randint(0, num_steps)
+    num_tokens = ((len(corpus) - offset - 1) // batch_size) * batch_size
+    Xs = d2l.tensor(corpus[offset: offset + num_tokens])
+    Ys = d2l.tensor(corpus[offset + 1: offset + 1 + num_tokens])
+    Xs, Ys = Xs.reshape((batch_size, -1)), Ys.reshape((batch_size, -1))
+    num_batches = Xs.shape[1] // num_steps
+    for i in range(0, num_steps * num_batches, num_steps):
         X = Xs[:, i: i + num_steps]
         Y = Ys[:, i: i + num_steps]
         yield X, Y
@@ -412,12 +439,12 @@ def load_data_time_machine(batch_size, num_steps,  #@save
 
 1. 假设训练数据集中有$100,000$个单词。一个四元语法需要存储多少个词频和相邻多词频率？
 1. 我们如何对一系列对话建模？
-1. 一元语法、二元语法和三元语法的齐普夫定律的指数是不一样的，你能设法估计嘛？
+1. 一元语法、二元语法和三元语法的齐普夫定律的指数是不一样的，能设法估计么？
 1. 想一想读取长序列数据的其他方法？
 1. 考虑一下我们用于读取长序列的随机偏移量。
     1. 为什么随机偏移量是个好主意？
     1. 它真的会在文档的序列上实现完美的均匀分布吗？
-    1. 你要怎么做才能使分布更均匀？
+    1. 要怎么做才能使分布更均匀？
 1. 如果我们希望一个序列样本是一个完整的句子，那么这在小批量抽样中会带来怎样的问题？如何解决？
 
 :begin_tab:`mxnet`
@@ -430,4 +457,8 @@ def load_data_time_machine(batch_size, num_steps,  #@save
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/2098)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11797)
 :end_tab:

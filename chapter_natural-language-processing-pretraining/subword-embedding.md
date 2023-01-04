@@ -1,13 +1,16 @@
 # 子词嵌入
 :label:`sec_fasttext`
 
-在英语中，“helps”、“helped”和“helping”等单词都是同一个词“help”的变形形式。“dog”和“dogs”之间的关系与“cat”和“cats”之间的关系相同，“boy”和“boyfriend”之间的关系与“girl”和“girlfriend”之间的关系相同。在法语和西班牙语等其他语言中，许多动词有40多种变形形式，而在芬兰语中，名词最多可能有15种变形。在语言学中，形态学研究单词形成和词汇关系。但是，word2vec和GloVe都没有对词的内部结构进行探讨。
+在英语中，“helps”“helped”和“helping”等单词都是同一个词“help”的变形形式。“dog”和“dogs”之间的关系与“cat”和“cats”之间的关系相同，“boy”和“boyfriend”之间的关系与“girl”和“girlfriend”之间的关系相同。在法语和西班牙语等其他语言中，许多动词有40多种变形形式，而在芬兰语中，名词最多可能有15种变形。在语言学中，形态学研究单词形成和词汇关系。但是，word2vec和GloVe都没有对词的内部结构进行探讨。
 
 ## fastText模型
 
-回想一下词在word2vec中是如何表示的。在跳元模型和连续词袋模型中，同一词的不同变形形式直接由不同的向量表示，不需要共享参数。为了使用形态信息，*fastText*模型提出了一种*子词嵌入*方法，其中子词是一个字符$n$-gram :cite:`Bojanowski.Grave.Joulin.ea.2017`。fastText可以被认为是子词级跳元模型，而非学习词级向量表示，其中每个*中心词*由其子词级向量之和表示。
+回想一下词在word2vec中是如何表示的。在跳元模型和连续词袋模型中，同一词的不同变形形式直接由不同的向量表示，不需要共享参数。为了使用形态信息，*fastText模型*提出了一种*子词嵌入*方法，其中子词是一个字符$n$-gram :cite:`Bojanowski.Grave.Joulin.ea.2017`。fastText可以被认为是子词级跳元模型，而非学习词级向量表示，其中每个*中心词*由其子词级向量之和表示。
 
-让我们来说明如何以单词“where”为例获得fastText中每个中心词的子词。首先，在词的开头和末尾添加特殊字符“&lt;”和“&gt;”，以将前缀和后缀与其他子词区分开来。然后，从词中提取字符$n$-gram。例如，值$n=3$时，我们将获得长度为3的所有子词：“&lt;wh”、“whe”、“her”、“ere”、“re&gt;”和特殊子词“&lt;where&gt;”。
+让我们来说明如何以单词“where”为例获得fastText中每个中心词的子词。首先，在词的开头和末尾添加特殊字符“&lt;”和“&gt;”，以将前缀和后缀与其他子词区分开来。
+然后，从词中提取字符$n$-gram。
+例如，值$n=3$时，我们将获得长度为3的所有子词：
+“&lt;wh”“whe”“her”“ere”“re&gt;”和特殊子词“&lt;where&gt;”。
 
 在fastText中，对于任意词$w$，用$\mathcal{G}_w$表示其长度在3和6之间的所有子词与其特殊子词的并集。词表是所有词的子词的集合。假设$\mathbf{z}_g$是词典中的子词$g$的向量，则跳元模型中作为中心词的词$w$的向量$\mathbf{v}_w$是其子词向量的和：
 
@@ -25,12 +28,23 @@ fastText的其余部分与跳元模型相同。与跳元模型相比，fastText�
 首先，我们将符号词表初始化为所有英文小写字符、特殊的词尾符号`'_'`和特殊的未知符号`'[UNK]'`。
 
 ```{.python .input}
-#@tab all
+#@tab mxnet, pytorch
 import collections
 
 symbols = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
            'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
            '_', '[UNK]']
+           
+```
+
+```{.python .input}
+#@tab paddle
+import collections
+
+symbols = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+           'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+           '_', '[UNK]']
+           
 ```
 
 因为我们不考虑跨越词边界的符号对，所以我们只需要一个字典`raw_token_freqs`将词映射到数据集中的频率（出现次数）。注意，特殊符号`'_'`被附加到每个词的尾部，以便我们可以容易地从输出符号序列（例如，“a_all er_man”）恢复单词序列（例如，“a_all er_man”）。由于我们仅从单个字符和特殊符号的词开始合并处理，所以在每个词（词典`token_freqs`的键）内的每对连续字符之间插入空格。换句话说，空格是词中符号之间的分隔符。
@@ -80,7 +94,7 @@ num_merges = 10
 for i in range(num_merges):
     max_freq_pair = get_max_freq_pair(token_freqs)
     token_freqs = merge_symbols(max_freq_pair, token_freqs, symbols)
-    print(f'merge #{i + 1}:', max_freq_pair)
+    print(f'合并# {i+1}:',max_freq_pair)
 ```
 
 在字节对编码的10次迭代之后，我们可以看到列表`symbols`现在又包含10个从其他符号迭代合并而来的符号。
@@ -90,7 +104,7 @@ for i in range(num_merges):
 print(symbols)
 ```
 
-对于在词典`raw_token_freqs`的键中指定的同一数据集，作为字节对编码算法的结果，数据集中的每个词现在被子词“fast_”、“fast”、“er_”、“tall_”和“tall”分割。例如，单词“fast er_”和“tall er_”分别被分割为“fast er_”和“tall er_”。
+对于在词典`raw_token_freqs`的键中指定的同一数据集，作为字节对编码算法的结果，数据集中的每个词现在被子词“fast_”“fast”“er_”“tall_”和“tall”分割。例如，单词“fast er_”和“tall er_”分别被分割为“fast er_”和“tall er_”。
 
 ```{.python .input}
 #@tab all
@@ -130,7 +144,7 @@ print(segment_BPE(tokens, symbols))
 
 ## 小结
 
-* fastText模型提出了一种子词嵌入方法。基于word2vec中的跳元模型，它将中心词表示为其子词向量之和。
+* fastText模型提出了一种子词嵌入方法：基于word2vec中的跳元模型，它将中心词表示为其子词向量之和。
 * 字节对编码执行训练数据集的统计分析，以发现词内的公共符号。作为一种贪心方法，字节对编码迭代地合并最频繁的连续符号对。
 * 子词嵌入可以提高稀有词和词典外词的表示质量。
 
@@ -142,5 +156,13 @@ print(segment_BPE(tokens, symbols))
 1. 如何扩展字节对编码的思想来提取短语？
 
 :begin_tab:`mxnet`
-[Discussions](https://discuss.d2l.ai/t/386)
+[Discussions](https://discuss.d2l.ai/t/5747)
+:end_tab:
+
+:begin_tab:`pytorch`
+[Discussions](https://discuss.d2l.ai/t/5748)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11818)
 :end_tab:

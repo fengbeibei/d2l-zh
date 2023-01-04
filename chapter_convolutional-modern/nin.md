@@ -3,8 +3,7 @@
 
 LeNet、AlexNet和VGG都有一个共同的设计模式：通过一系列的卷积层与汇聚层来提取空间结构特征；然后通过全连接层对特征的表征进行处理。
 AlexNet和VGG对LeNet的改进主要在于如何扩大和加深这两个模块。
-或者，可以想象在这个过程的早期使用全连接层。
-然而，如果使用稠密层了，可能会完全放弃表征的空间结构。
+或者，可以想象在这个过程的早期使用全连接层。然而，如果使用了全连接层，可能会完全放弃表征的空间结构。
 *网络中的网络*（*NiN*）提供了一个非常简单的解决方案：在每个像素的通道上分别使用多层感知机 :cite:`Lin.Chen.Yan.2013`
 
 ## (**NiN块**)
@@ -68,6 +67,24 @@ def nin_block(num_channels, kernel_size, strides, padding):
                                activation='relu')])
 ```
 
+```{.python .input}
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
+import paddle.nn as nn
+
+def nin_block(in_channels, out_channels, kernel_size, strides, padding):
+    return nn.Sequential(
+        nn.Conv2D(in_channels, out_channels, kernel_size, strides, padding),
+        nn.ReLU(), 
+        nn.Conv2D(out_channels, out_channels, kernel_size=1),
+        nn.ReLU(), 
+        nn.Conv2D(out_channels, out_channels, kernel_size=1),
+        nn.ReLU())
+```
+
 ## [**NiN模型**]
 
 最初的NiN网络是在AlexNet后不久提出的，显然从中得到了一些启示。
@@ -75,7 +92,7 @@ NiN使用窗口形状为$11\times 11$、$5\times 5$和$3\times 3$的卷积层，
 每个NiN块后有一个最大汇聚层，汇聚窗口形状为$3\times 3$，步幅为2。
 
 NiN和AlexNet之间的一个显著区别是NiN完全取消了全连接层。
-相反，NiN使用一个NiN块，其输出通道数等于标签类别的数量。最后放一个*全局平均汇聚层*（global average pooling layer），生成一个多元逻辑向量（logits）。NiN设计的一个优点是，它显著减少了模型所需参数的数量。然而，在实践中，这种设计有时会增加训练模型的时间。
+相反，NiN使用一个NiN块，其输出通道数等于标签类别的数量。最后放一个*全局平均汇聚层*（global average pooling layer），生成一个对数几率	（logits）。NiN设计的一个优点是，它显著减少了模型所需参数的数量。然而，在实践中，这种设计有时会增加训练模型的时间。
 
 ```{.python .input}
 net = nn.Sequential()
@@ -90,7 +107,7 @@ net.add(nin_block(96, kernel_size=11, strides=4, padding=0),
         nin_block(10, kernel_size=3, strides=1, padding=1),
         # 全局平均汇聚层将窗口形状自动设置成输入的高和宽
         nn.GlobalAvgPool2D(),
-        # 将四维的输出转成二维的输出，其形状为(批量大小, 10)
+        # 将四维的输出转成二维的输出，其形状为(批量大小,10)
         nn.Flatten())
 ```
 
@@ -107,7 +124,7 @@ net = nn.Sequential(
     # 标签类别数是10
     nin_block(384, 10, kernel_size=3, strides=1, padding=1),
     nn.AdaptiveAvgPool2d((1, 1)),
-    # 将四维的输出转成二维的输出，其形状为(批量大小, 10)
+    # 将四维的输出转成二维的输出，其形状为(批量大小,10)
     nn.Flatten())
 ```
 
@@ -126,9 +143,25 @@ def net():
         nin_block(10, kernel_size=3, strides=1, padding='same'),
         tf.keras.layers.GlobalAveragePooling2D(),
         tf.keras.layers.Reshape((1, 1, 10)),
-        # 将四维的输出转成二维的输出，其形状为(批量大小, 10)
+        # 将四维的输出转成二维的输出，其形状为(批量大小,10)
         tf.keras.layers.Flatten(),
         ])
+```
+
+```{.python .input}
+#@tab paddle
+net = nn.Sequential(
+    nin_block(1, 96, kernel_size=11, strides=4, padding=0),
+    nn.MaxPool2D(3, stride=2),
+    nin_block(96, 256, kernel_size=5, strides=1, padding=2),
+    nn.MaxPool2D(3, stride=2),
+    nin_block(256, 384, kernel_size=3, strides=1, padding=1),
+    nn.MaxPool2D(3, stride=2), nn.Dropout(0.5),
+    # 标签类别数是10
+    nin_block(384, 10, kernel_size=3, strides=1, padding=1),
+    nn.AdaptiveAvgPool2D((1, 1)),
+    # 将四维的输出转成二维的输出，其形状为(批量大小,10)
+    nn.Flatten())
 ```
 
 我们创建一个数据样本来[**查看每个块的输出形状**]。
@@ -153,6 +186,14 @@ for layer in net:
 #@tab tensorflow
 X = tf.random.uniform((1, 224, 224, 1))
 for layer in net().layers:
+    X = layer(X)
+    print(layer.__class__.__name__,'output shape:\t', X.shape)
+```
+
+```{.python .input}
+#@tab paddle
+X = paddle.rand(shape=(1, 1, 224, 224))
+for layer in net:
     X = layer(X)
     print(layer.__class__.__name__,'output shape:\t', X.shape)
 ```
@@ -196,4 +237,8 @@ d2l.train_ch6(net, train_iter, test_iter, num_epochs, lr, d2l.try_gpu())
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/1868)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11790)
 :end_tab:

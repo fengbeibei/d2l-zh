@@ -28,8 +28,8 @@
 
 将模型在训练数据上拟合的比在潜在分布中更接近的现象称为*过拟合*（overfitting），
 用于对抗过拟合的技术称为*正则化*（regularization）。
-在前面的章节中，你可能在用Fashion-MNIST数据集做实验时已经观察到了这种过拟合现象。
-在实验中调整模型架构或超参数时，你会发现：
+在前面的章节中，有些读者可能在用Fashion-MNIST数据集做实验时已经观察到了这种过拟合现象。
+在实验中调整模型架构或超参数时会发现：
 如果有足够多的神经元、层数和训练迭代周期，
 模型最终可以在训练集上达到完美的精度，此时测试集的准确性却下降了。
 
@@ -39,7 +39,7 @@
 *训练误差*（training error）是指，
 模型在训练数据集上计算得到的误差。
 *泛化误差*（generalization error）是指，
-模型应用在同样从原始样本的分布中抽取的无限多的数据样本时，模型误差的期望。
+模型应用在同样从原始样本的分布中抽取的无限多数据样本时，模型误差的期望。
 
 问题是，我们永远不能准确地计算出泛化误差。
 这是因为无限多的数据样本是一个虚构的对象。
@@ -96,7 +96,7 @@
 并不比抽取的第2个样本和第200万个样本的相关性更强。
 
 要成为一名优秀的机器学习科学家需要具备批判性思考能力。
-你应该已经从这个假设中找出漏洞，即很容易找出假设失效的情况。
+假设是存在漏洞的，即很容易找出假设失效的情况。
 如果我们根据从加州大学旧金山分校医学中心的患者数据训练死亡风险预测模型，
 并将其应用于马萨诸塞州综合医院的患者数据，结果会怎么样？
 这两个数据的分布可能不完全一样。
@@ -114,13 +114,13 @@
 这不太可能有效，因为大学生看起来往往与老年人有很大的不同。
 
 在接下来的章节中，我们将讨论因违背独立同分布假设而引起的问题。
-目前，即使认为独立同分布假设是理所当然的，理解泛化也是一个困难的问题。
+目前，即使认为独立同分布假设是理所当然的，理解泛化性也是一个困难的问题。
 此外，能够解释深层神经网络泛化性能的理论基础，
 也仍在继续困扰着学习理论领域最伟大的学者们。
 
 当我们训练模型时，我们试图找到一个能够尽可能拟合训练数据的函数。
-但是如果它执行地“太好了”，而不能对看不见的数据做到很好泛化，就好导致过拟合。
-这种情况正是我们想要避免，或起码控制的。
+但是如果它执行地“太好了”，而不能对看不见的数据做到很好泛化，就会导致过拟合。
+这种情况正是我们想要避免或控制的。
 深度学习中有许多启发式的技术旨在防止过拟合。
 
 ### 模型复杂性
@@ -132,7 +132,7 @@
 例如，具有更多参数的模型可能被认为更复杂，
 参数有更大取值范围的模型可能更为复杂。
 通常对于神经网络，我们认为需要更多训练迭代的模型比较复杂，
-而需要“早停”（early stopping）的模型（即较少训练迭代周期）就不那么复杂。
+而需要*早停*（early stopping）的模型（即较少训练迭代周期）就不那么复杂。
 
 我们很难比较本质上不同大类的模型之间（例如，决策树与神经网络）的复杂性。
 就目前而言，一条简单的经验法则相当有用：
@@ -144,11 +144,11 @@
 也就是说，我们在观察事实之后进行估计，因此容易受到相关谬误的影响。
 目前，我们将把哲学放在一边，坚持更切实的问题。
 
-在本节中，为了给你一些直观的印象，我们将重点介绍几个倾向于影响模型泛化的因素：
+本节为了给出一些直观的印象，我们将重点介绍几个倾向于影响模型泛化的因素。
 
 1. 可调整参数的数量。当可调整参数的数量（有时称为*自由度*）很大时，模型往往更容易过拟合。
 1. 参数采用的值。当权重的取值范围较大时，模型可能更容易过拟合。
-1. 训练样本的数量。即使你的模型很简单，也很容易过拟合只包含一两个样本的数据集。而过拟合一个有数百万个样本的数据集则需要一个极其灵活的模型。
+1. 训练样本的数量。即使模型很简单，也很容易过拟合只包含一两个样本的数据集。而过拟合一个有数百万个样本的数据集则需要一个极其灵活的模型。
 
 ## 模型选择
 
@@ -158,7 +158,7 @@
 又有时，我们需要比较不同的超参数设置下的同一类模型。
 
 例如，训练多层感知机模型时，我们可能希望比较具有
-不同数量的隐藏层、不同数量的隐藏单元以及不同的的激活函数组合的模型。
+不同数量的隐藏层、不同数量的隐藏单元以及不同的激活函数组合的模型。
 为了确定候选模型中的最佳模型，我们通常会使用验证集。
 
 ### 验证集
@@ -217,7 +217,7 @@
 
 ### 模型复杂性
 
-为了说明一些关于过拟合和模型复杂性的经典的直觉，
+为了说明一些关于过拟合和模型复杂性的经典直觉，
 我们给出一个多项式的例子。
 给定由单个特征$x$和对应实数标签$y$组成的训练数据，
 我们试图找到下面的$d$阶多项式来估计标签$y$。
@@ -258,7 +258,7 @@ $$\hat{y}= \sum_{i=0}^d x^i w_i$$
 
 ## 多项式回归
 
-我们现在可以(**通过多项式拟合来交互地探索这些概念**)。
+我们现在可以(**通过多项式拟合来探索这些概念**)。
 
 ```{.python .input}
 from d2l import mxnet as d2l
@@ -281,6 +281,17 @@ import math
 #@tab tensorflow
 from d2l import tensorflow as d2l
 import tensorflow as tf
+import numpy as np
+import math
+```
+
+```{.python .input}
+#@tab paddle
+from d2l import paddle as d2l
+import warnings
+warnings.filterwarnings("ignore")
+import paddle
+from paddle import nn
 import numpy as np
 import math
 ```
@@ -309,8 +320,8 @@ features = np.random.normal(size=(n_train + n_test, 1))
 np.random.shuffle(features)
 poly_features = np.power(features, np.arange(max_degree).reshape(1, -1))
 for i in range(max_degree):
-    poly_features[:, i] /= math.gamma(i + 1)  # `gamma(n)` = (n-1)!
-# `labels`的维度: (`n_train` + `n_test`,)
+    poly_features[:, i] /= math.gamma(i + 1)  # gamma(n)=(n-1)!
+# labels的维度:(n_train+n_test,)
 labels = np.dot(poly_features, true_w)
 labels += np.random.normal(scale=0.1, size=labels.shape)
 ```
@@ -321,7 +332,7 @@ labels += np.random.normal(scale=0.1, size=labels.shape)
 第一个值是与偏置相对应的常量特征。
 
 ```{.python .input}
-#@tab pytorch, tensorflow
+#@tab pytorch, tensorflow, paddle
 # NumPy ndarray转换为tensor
 true_w, features, poly_features, labels = [d2l.tensor(x, dtype=
     d2l.float32) for x in [true_w, features, poly_features, labels]]
@@ -339,8 +350,8 @@ features[:2], poly_features[:2, :], labels[:2]
 ```{.python .input}
 #@tab mxnet, tensorflow
 def evaluate_loss(net, data_iter, loss):  #@save
-    """评估给定数据集上模型的损失。"""
-    metric = d2l.Accumulator(2)  # 损失的总和, 样本数量
+    """评估给定数据集上模型的损失"""
+    metric = d2l.Accumulator(2)  # 损失的总和,样本数量
     for X, y in data_iter:
         l = loss(net(X), y)
         metric.add(d2l.reduce_sum(l), d2l.size(l))
@@ -350,13 +361,26 @@ def evaluate_loss(net, data_iter, loss):  #@save
 ```{.python .input}
 #@tab pytorch
 def evaluate_loss(net, data_iter, loss):  #@save
-    """评估给定数据集上模型的损失。"""
-    metric = d2l.Accumulator(2)  # 损失的总和, 样本数量
+    """评估给定数据集上模型的损失"""
+    metric = d2l.Accumulator(2)  # 损失的总和,样本数量
     for X, y in data_iter:
         out = net(X)
         y = d2l.reshape(y, out.shape)
         l = loss(out, y)
         metric.add(d2l.reduce_sum(l), d2l.size(l))
+    return metric[0] / metric[1]
+```
+
+```{.python .input}
+#@tab paddle
+def evaluate_loss(net, data_iter, loss):  #@save
+    """评估给定数据集上模型的损失。"""
+    metric = d2l.Accumulator(2)  # 损失的总和, 样本数量
+    for X, y in data_iter:
+        out = net(X)
+        y = y.reshape(out.shape)
+        l = loss(out, y)
+        metric.add(l.sum(), l.numel())
     return metric[0] / metric[1]
 ```
 
@@ -367,7 +391,7 @@ def train(train_features, test_features, train_labels, test_labels,
           num_epochs=400):
     loss = gluon.loss.L2Loss()
     net = nn.Sequential()
-    # 不设置偏置，因为我们已经在多项式特征中实现了它
+    # 不设置偏置，因为我们已经在多项式中实现了它
     net.add(nn.Dense(1, use_bias=False))
     net.initialize()
     batch_size = min(10, train_labels.shape[0])
@@ -391,9 +415,9 @@ def train(train_features, test_features, train_labels, test_labels,
 #@tab pytorch
 def train(train_features, test_features, train_labels, test_labels,
           num_epochs=400):
-    loss = nn.MSELoss()
+    loss = nn.MSELoss(reduction='none')
     input_shape = train_features.shape[-1]
-    # 不设置偏置，因为我们已经在多项式特征中实现了它
+    # 不设置偏置，因为我们已经在多项式中实现了它
     net = nn.Sequential(nn.Linear(input_shape, 1, bias=False))
     batch_size = min(10, train_labels.shape[0])
     train_iter = d2l.load_array((train_features, train_labels.reshape(-1,1)),
@@ -418,7 +442,7 @@ def train(train_features, test_features, train_labels, test_labels,
           num_epochs=400):
     loss = tf.losses.MeanSquaredError()
     input_shape = train_features.shape[-1]
-    # 不设置偏置，因为我们已经在多项式特征中实现了它
+    # 不设置偏置，因为我们已经在多项式中实现了它
     net = tf.keras.Sequential()
     net.add(tf.keras.layers.Dense(1, use_bias=False))
     batch_size = min(10, train_labels.shape[0])
@@ -437,7 +461,33 @@ def train(train_features, test_features, train_labels, test_labels,
     print('weight:', net.get_weights()[0].T)
 ```
 
-### [**三阶多项式函数拟合(正态)**]
+```{.python .input}
+#@tab paddle
+def train(train_features, test_features, train_labels, test_labels,
+          num_epochs=400):
+    loss = nn.MSELoss()
+    input_shape = train_features.shape[-1]
+    # 不设置偏置，因为我们已经在多项式特征中实现了它
+    net = nn.Sequential(nn.Linear(input_shape, 1, bias_attr=False))
+    batch_size = min(10, train_labels.shape[0])
+    print(batch_size)
+    train_iter = d2l.load_array(((train_features, train_labels.reshape([-1,1]))),
+                                batch_size)
+    test_iter = d2l.load_array((test_features, test_labels.reshape([-1,1])),
+                               batch_size, is_train=False)
+    trainer = paddle.optimizer.SGD(parameters=net.parameters(), learning_rate=0.01)
+    animator = d2l.Animator(xlabel='epoch', ylabel='loss', yscale='log',
+                            xlim=[1, num_epochs], ylim=[1e-3, 1e2],
+                            legend=['train', 'test'])
+    for epoch in range(num_epochs):
+        d2l.train_epoch_ch3(net, train_iter, loss, trainer)
+        if epoch == 0 or (epoch + 1) % 20 == 0:
+            animator.add(epoch + 1, (evaluate_loss(net, train_iter, loss),
+                                     evaluate_loss(net, test_iter, loss)))
+    print('weight:', net[0].weight.numpy())
+```
+
+### [**三阶多项式函数拟合(正常)**]
 
 我们将首先使用三阶多项式函数，它与数据生成函数的阶数相同。
 结果表明，该模型能有效降低训练损失和测试损失。
@@ -445,7 +495,7 @@ def train(train_features, test_features, train_labels, test_labels,
 
 ```{.python .input}
 #@tab all
-# 从多项式特征中选择前4个维度，即 1, x, x^2/2!, x^3/3!
+# 从多项式特征中选择前4个维度，即1,x,x^2/2!,x^3/3!
 train(poly_features[:n_train, :4], poly_features[n_train:, :4],
       labels[:n_train], labels[n_train:])
 ```
@@ -489,13 +539,13 @@ train(poly_features[:n_train, :], poly_features[n_train:, :],
 
 ## 练习
 
-1. 你能准确地解出这个多项式回归问题吗？提示：使用线性代数。
-1. 考虑多项式的模型选择：
-    1. 绘制训练损失与模型复杂度（多项式的阶数）的关系图。你观察到了什么？需要多少阶的多项式才能将训练损失减少到0?
+1. 这个多项式回归问题可以准确地解出吗？提示：使用线性代数。
+1. 考虑多项式的模型选择。
+    1. 绘制训练损失与模型复杂度（多项式的阶数）的关系图。观察到了什么？需要多少阶的多项式才能将训练损失减少到0?
     1. 在这种情况下绘制测试的损失图。
     1. 生成同样的图，作为数据量的函数。
-1. 如果你不对多项式特征$x^i$进行标准化($1/i!$)，会发生什么事情？你能用其他方法解决这个问题吗？
-1. 你能期待看到泛化误差为零吗？
+1. 如果不对多项式特征$x^i$进行标准化($1/i!$)，会发生什么事情？能用其他方法解决这个问题吗？
+1. 泛化误差可能为零吗？
 
 :begin_tab:`mxnet`
 [Discussions](https://discuss.d2l.ai/t/1807)
@@ -507,4 +557,8 @@ train(poly_features[:n_train, :], poly_features[n_train:, :],
 
 :begin_tab:`tensorflow`
 [Discussions](https://discuss.d2l.ai/t/1805)
+:end_tab:
+
+:begin_tab:`paddle`
+[Discussions](https://discuss.d2l.ai/t/11771)
 :end_tab:
